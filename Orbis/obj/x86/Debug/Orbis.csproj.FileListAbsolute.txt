@@ -64,3 +64,36 @@ C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\SharpDX.XInput.xml
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\SharpDX.RawInput.xml
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D9.xml
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\obj\x86\Debug\Orbis.csprojResolveAssemblyReference.cache
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\obj\x86\Debug\Orbis.csprojResolveAssemblyReference.cache
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\obj\x86\Debug\Orbis.exe
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\obj\x86\Debug\Orbis.pdb
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\calibri 20.xnb
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\calibri 30.xnb
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\calibri 50.xnb
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\Consolas.xnb
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Orbis.exe
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Orbis.pdb
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\ColorMine.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\CsVorbis.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Lidgren.Network.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\MonoGame.Framework.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.MediaFoundation.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.XAudio2.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.DXGI.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D11.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct2D1.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.XInput.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.RawInput.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D9.dll
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\MonoGame.Framework.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.MediaFoundation.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.XAudio2.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D11.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.DXGI.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct2D1.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.XInput.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.RawInput.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D9.xml
+K:\Users\Connor\Documents\Visual Studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Content\test_char.xnb

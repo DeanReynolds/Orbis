@@ -131,7 +131,6 @@ namespace Orbis
                         if (sender != null)
                         {
                             sender.Position = message.ReadVector2();
-                            sender.Angle = message.ReadFloat();
                         }
                     }
                     else if (Network.IsClient)
@@ -143,7 +142,6 @@ namespace Orbis
                             if (sender != null)
                             {
                                 sender.Position = message.ReadVector2();
-                                sender.Angle = message.ReadFloat();
                             }
                         }
                     }
