@@ -34,6 +34,10 @@ namespace Orbis
         public static double BlinkTimer;
         #endregion
         #region Game Variables
+        public const int TileSize = 16;
+        public static Tile[,] Tiles;
+        public static Point Spawn;
+        public static Camera Camera;
         #endregion
 
         protected override void LoadContent()
@@ -64,6 +68,8 @@ namespace Orbis
             Settings = INI.ReadFile("settings.ini");
             Name = Settings.Get("Name"); IP = Settings.Get("IP");
             if (!Name.IsNullOrEmpty()) MenuState = 1;
+            Multiplayer.CreateLobby(Name);
+            Frame = Frames.LoadGame; // Start on the Load frame and skip the menu
         }
         protected override void Update(GameTime time)
         {
@@ -121,7 +127,13 @@ namespace Orbis
             else if (Frame == Frames.LoadGame)
             {
                 BlinkTimer -= time.ElapsedGameTime.TotalSeconds; if (BlinkTimer <= 0) BlinkTimer += 1;
-                if (Network.IsNullOrServer) Frame = Frames.Game;
+                Camera = new Camera();
+                if (Network.IsNullOrServer)
+                {
+                    Tiles = Generate(8400, 2400, out Spawn);
+                    Self.Position = new Vector2((Spawn.X * TileSize), (Spawn.Y * TileSize));
+                    Frame = Frames.Game;
+                }
                 Network.Update();
             }
             else if (Frame == Frames.Game)
@@ -129,6 +141,7 @@ namespace Orbis
                 for (int i = 0; i < Players.Length; i++)
                     if (Players[i] != null)
                         Players[i].Update(time);
+                Camera.Position = Self.Position;
                 if (Timers.Tick("posSync") && Network.IsServer)
                     foreach (Player player in Players)
                         if (player != null && (player.Connection != null))
@@ -196,7 +209,16 @@ namespace Orbis
             else if (Frame == Frames.LoadGame) { Screen.Setup(); Screen.DrawString(("Loading" + new string('.', (4 - (int)Math.Ceiling(BlinkTimer * 4)))), Font.Load("calibri 50"), new Vector2((Screen.BackBufferWidth / 2f), (Screen.BackBufferHeight / 2f)), Color.White, Textures.Origin.Center, (Scale * .5f)); Screen.Cease(); }
             else if (Frame == Frames.Game)
             {
-                Screen.Setup();
+                Screen.Setup(SamplerState.PointClamp, Camera.View());
+                int xMax = (int)Math.Ceiling((Camera.X + ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize), yMax = (int)Math.Ceiling((Camera.Y + ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize);
+                for (int x = (int)Math.Floor((Camera.X - ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize); x < xMax; x++)
+                    for (int y = (int)Math.Floor((Camera.Y - ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize); y < yMax; y++)
+                        if (InBounds(x, y))
+                        {
+                            Rectangle rect = new Rectangle((x * TileSize), (y * TileSize), TileSize, TileSize);
+                            if (Tiles[x, y].ForeID != 0) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].ForeID));
+                            if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].BackID), Color.DimGray);
+                        }
                 foreach (Player player in Players)
                     if (player != null)
                         player.Draw();
@@ -210,5 +232,26 @@ namespace Orbis
         }
 
         protected override void OnExiting(object sender, EventArgs args) { Multiplayer.QuitLobby(); base.OnExiting(sender, args); }
+
+        public static Tile[,] Generate(int width, int height, out Point spawn)
+        {
+            Tile[,] tiles = new Tile[width, height];
+            int minSurface = ((height / 4) - (height / 10)), maxSurface = ((height / 4) + (height / 10)), surface = Globe.Random(minSurface, maxSurface);
+            spawn = Point.Zero;
+            for (int x = 0; x < width; x++)
+            {
+                if (x == (width / 2)) spawn = new Point(x, (surface - 2));
+                for (int y = surface; y < height; y++)
+                {
+                    tiles[x, y].Fore = Tile.Tiles.Dirt;
+                    tiles[x, y].Back = Tile.Tiles.Dirt;
+                }
+                if (Globe.Chance(30)) surface += Globe.Random(-1, 1);
+                if (surface < minSurface) surface = minSurface;
+                if (surface > maxSurface) surface = maxSurface;
+            }
+            return tiles;
+        }
+        public static bool InBounds(int x, int y) { return !((x < 0) || (y < 0) || (x >= Tiles.GetLength(0)) || (y >= Tiles.GetLength(1))); }
     }
 }

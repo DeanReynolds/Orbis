@@ -51,7 +51,7 @@ namespace Orbis
         public void Draw()
         {
             Screen.Draw(Pixel(Color.Blue), Position, Angle, Origin.Center, new Vector2(32));
-            Mask.Draw(Color.White, 1);
+            Mask.Draw((Color.White * .5f), 1);
         }
 
         public void Move(Vector2 offset)
