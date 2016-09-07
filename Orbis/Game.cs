@@ -48,8 +48,10 @@ namespace Orbis
         public static RenderTarget2D Lighting;
         public static Thread LightingThread;
         public static Camera Camera;
-        public const float CameraZoom = 2f, ZoomRate = .05f;
-        public static float LineThickness = 1;
+        public const float CameraZoom = 2f, ZoomRate = .05f, CursorOpacitySpeed = .01f, CursorOpacityMin = .25f, CursorOpacityMax = .75f;
+        public static sbyte CursorOpacitySpeedDir = (sbyte)Globe.Pick(-1, 1);
+        public static float LineThickness = 1, CursorOpacity = Globe.Random(CursorOpacityMin, CursorOpacityMax);
+        public static int MouseTileX, MouseTileY;
         #endregion
 
         protected override void LoadContent()
@@ -176,16 +178,6 @@ namespace Orbis
                     // Create camera.
                     Camera = new Camera {Zoom = CameraZoom};
                     LineThickness = (1 / Camera.Zoom);
-                    Tiles = World.Generation.Generate(8400, 2400, out Spawn);
-                    Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int) Math.Ceiling((Screen.BackBufferWidth/Camera.Zoom)/TileSize + 1), (int) Math.Ceiling((Screen.BackBufferHeight/Camera.Zoom)/TileSize + 1));
-                    LightingThread = new Thread(() =>
-                    {
-                        while (true)
-                        {
-                            UpdateLighting();
-                            Thread.Sleep(100);
-                        }
-                    }) {Name = "Lighting", IsBackground = true};
                     Tiles = Generation.Generate(8400, 2400, out Spawn);
                     Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
                     LightingThread = new Thread(() => { while (true) { UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
@@ -197,6 +189,10 @@ namespace Orbis
             }
             else if (Frame == Frames.Game)
             {
+                MouseTileX = (int)Math.Floor(Mouse.CameraPosition.X / TileSize);
+                MouseTileY = (int)Math.Floor(Mouse.CameraPosition.Y / TileSize);
+                CursorOpacity = MathHelper.Clamp((CursorOpacity + (CursorOpacitySpeed * CursorOpacitySpeedDir)), CursorOpacityMin, CursorOpacityMax);
+                if (CursorOpacity.Matches(CursorOpacityMin, CursorOpacityMax)) CursorOpacitySpeedDir *= -1;
                 foreach (var t in Players.Where(t => t != null)) t.Update(time);
                 Camera.Position = Self.Position;
                 if (Timers.Tick("posSync") && Network.IsServer)
@@ -297,7 +293,7 @@ namespace Orbis
                 int xMax = (int) Math.Ceiling((Camera.X + (Screen.BackBufferWidth/2f)/Camera.Zoom)/TileSize), yMax = (int) Math.Ceiling((Camera.Y + ((Screen.BackBufferHeight/2f)/Camera.Zoom))/TileSize);
                 for (var x = (int) Math.Floor((Camera.X - (Screen.BackBufferWidth/2f)/Camera.Zoom)/TileSize); x < xMax; x++)
                     for (var y = (int) Math.Floor((Camera.Y - (Screen.BackBufferHeight/2f)/Camera.Zoom)/TileSize); y < yMax; y++)
-                        if (InBounds(x, y) && (Tiles[x, y].Light > 0))
+                        if (InBounds(x, y) && (Tiles[x, y].Light > 0)/*Draw tile only if not in complete darkness*/)
                         {
                             var rect = new Rectangle(x*TileSize, y*TileSize, TileSize, TileSize);
                             if (Tiles[x, y].ForeID != 0) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].ForeID));
@@ -306,6 +302,7 @@ namespace Orbis
                             //Screen.Draw(Textures.Pixel(Color.Black, true), rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
                         }
                 foreach (var player in Players.Where(player => player != null)) player.Draw();
+                Screen.FillRectangle(new Rectangle((MouseTileX * TileSize), (MouseTileY * TileSize), TileSize, TileSize), (Color.White * CursorOpacity));
                 Screen.Cease();
                 Screen.Setup(SpriteSortMode.Deferred, Multiply, Camera.View(Camera.Samplers.Point));
                 Screen.Draw(Lighting, new Rectangle(

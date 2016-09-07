@@ -40,9 +40,10 @@ namespace Orbis
         /// </summary>
         public byte Slot;
 
-        public const float Gravity = 10;
+        public const float Gravity = 15;
         public byte Jumps;
-        public Vector2 Speed = new Vector2(250, 250), Velocity = Vector2.Zero;
+        public float XSpeed = 125;
+        public Vector2 Velocity = Vector2.Zero;
         public Vector2 Scale;
 
         public int TileX, TileY, LastTileX, LastTileY;
@@ -103,8 +104,8 @@ namespace Orbis
                 if (Globe.IsActive)
                 {
                     if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) { Velocity.Y = -5; Jumps++; Move(new Vector2(0, -10)); }
-                    if (Keyboard.Holding(Keyboard.Keys.A)) Move(new Vector2(-(float)(Speed.X * time.ElapsedGameTime.TotalSeconds), 0));
-                    if (Keyboard.Holding(Keyboard.Keys.D)) Move(new Vector2((float)(Speed.X * time.ElapsedGameTime.TotalSeconds), 0));
+                    if (Keyboard.Holding(Keyboard.Keys.A)) Move(new Vector2(-(float)(XSpeed * time.ElapsedGameTime.TotalSeconds), 0));
+                    if (Keyboard.Holding(Keyboard.Keys.D)) Move(new Vector2((float)(XSpeed * time.ElapsedGameTime.TotalSeconds), 0));
                 }
                 Move(Velocity);
                 if (Timers.Tick("posSync") && Network.IsClient) new Packet((byte)Packets.Position, Position).Send(NetDeliveryMethod.UnreliableSequenced, 1);
