@@ -8,6 +8,8 @@ using System;
 
 namespace Orbis
 {
+    using Microsoft.Xna.Framework.Graphics;
+    using static Textures;
     using Packet = Network.Packet;
     using Packets = Multiplayer.Packets;
 
@@ -30,7 +32,7 @@ namespace Orbis
         /// <summary>
         /// The location of the player in the world.
         /// </summary>
-        public Vector2 Position;
+        public Vector2 Position, LastPosition;
         /// <summary>
         /// The player slot that this player occupies in the current server.
         /// </summary>
@@ -42,6 +44,7 @@ namespace Orbis
         public Vector2 Scale;
 
         public int TileX, TileY, LastTileX, LastTileY;
+        public sbyte Direction;
 
         /// <summary>
         /// Creates a player with only a name.
@@ -72,7 +75,7 @@ namespace Orbis
         // We can't just say TileSize * 2 and TileSize * 3 for the dimensions because the player has to be able to get down holes and through
         //  tunnels easily. Therefore he must be a couple of pixels shorter than 3 tiles high and a couple of pixels thinner than 2 tiles wide.
         // 12x22 is the size of the test character, by the way. This may change.
-        public void Load() { Scale = new Vector2(12, 22); Hitbox = Polygon.CreateRectangle(Scale); }
+        public void Load() { Scale = new Vector2(12, 24); Hitbox = Polygon.CreateRectangle(Scale); }
         public bool Collides
         {
             get
@@ -104,14 +107,16 @@ namespace Orbis
                 Move(Velocity);
                 if (Timers.Tick("posSync") && Network.IsClient) new Packet((byte)Packets.Position, Position).Send(NetDeliveryMethod.UnreliableSequenced, 1);
             }
+            if (LastPosition != Position)
+            {
+                if (Position.X > LastPosition.X) Direction = 1;
+                else if (Position.X < LastPosition.X) Direction = -1;
+                LastPosition = Position;
+            }
         }
         public void Draw()
         {
-            Screen.Draw(Textures.Load("test_char.png"), new Rectangle(
-                    (int)Position.X - (Textures.Load("test_char.png").Width/2), 
-                    (int)Position.Y - (Textures.Load("test_char.png").Height / 2),
-                    Textures.Load("test_char.png").Width, 
-                    Textures.Load("test_char.png").Height));
+            Screen.Draw(Textures.Load("test_char.png"), Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
             Hitbox.Draw(Color.Red*.75f, .5f);
         }
 

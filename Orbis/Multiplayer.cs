@@ -92,7 +92,7 @@ namespace Orbis
                 Players = new Player[message.ReadByte()];
                 Self = Player.Set(message.ReadByte(), new Player(Settings.Get("Name")));
                 Timers.Add("posSync", 1 / 20d);
-                Camera = new Camera();
+                Camera = new Camera() { Zoom = Game.CameraZoom };
                 Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
                 LightingThread = new Thread(() => { while (true) { Game.UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                 Frame = Frames.LoadGame;
@@ -103,7 +103,7 @@ namespace Orbis
             {
                 if (Network.IsServer)
                 {
-                    Player sender = Player.Get(message.SenderConnection);
+                    var sender = Player.Get(message.SenderConnection);
                     var data = new Packet((byte)packet);
                     foreach (var t in Players)
                     {
@@ -178,34 +178,34 @@ namespace Orbis
         {
             data.Add((ushort)x, (ushort)y, (ushort)width, (ushort)height);
             int endX = (x + width), endY = (y + height);
-            for (int j = x; j < endX; j++) for (int k = y; k < endY; k++) data.Add(tiles[j, k].ForeID, tiles[j, k].BackID);
+            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) data.Add(tiles[j, k].ForeID, tiles[j, k].BackID);
         }
         public static void ReadRectangleOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), width = data.ReadUInt16(), height = data.ReadUInt16(), endX = (x + width), endY = (y + height);
-            for (int j = x; j < endX; j++) for (int k = y; k < endY; k++) { tiles[j, k].ForeID = data.ReadByte(); tiles[j, k].BackID = data.ReadByte(); }
+            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) { tiles[j, k].ForeID = data.ReadByte(); tiles[j, k].BackID = data.ReadByte(); }
         }
         public static void WriteRowOfTiles(ref Tile[,] tiles, ref Packet data, int x, int y, int width)
         {
             data.Add((ushort)x, (ushort)y, (ushort)width);
-            int endX = (x + width);
-            for (int j = x; j < endX; j++) data.Add(tiles[j, y].ForeID, tiles[j, y].BackID);
+            var endX = (x + width);
+            for (var j = x; j < endX; j++) data.Add(tiles[j, y].ForeID, tiles[j, y].BackID);
         }
         public static void ReadRowOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), width = data.ReadUInt16(), endX = (x + width);
-            for (int j = x; j < endX; j++) { tiles[j, y].ForeID = data.ReadByte(); tiles[j, y].BackID = data.ReadByte(); }
+            for (var j = x; j < endX; j++) { tiles[j, y].ForeID = data.ReadByte(); tiles[j, y].BackID = data.ReadByte(); }
         }
         public static void WriteColumnOfTiles(ref Tile[,] tiles, ref Packet data, int x, int y, int height)
         {
             data.Add((ushort)x, (ushort)y, (ushort)height);
-            int endY = (y + height);
-            for (int k = y; k < endY; k++) data.Add(tiles[x, k].ForeID, tiles[x, k].BackID);
+            var endY = (y + height);
+            for (var k = y; k < endY; k++) data.Add(tiles[x, k].ForeID, tiles[x, k].BackID);
         }
         public static void ReadColumnOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), height = data.ReadUInt16(), endY = (y + height);
-            for (int k = y; k < endY; k++) { tiles[x, k].ForeID = data.ReadByte(); tiles[x, k].BackID = data.ReadByte(); }
+            for (var k = y; k < endY; k++) { tiles[x, k].ForeID = data.ReadByte(); tiles[x, k].BackID = data.ReadByte(); }
         }
     }
 }
