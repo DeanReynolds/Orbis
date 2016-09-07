@@ -90,7 +90,7 @@ namespace Orbis
             else if (packet == Packets.Initial)
             {
                 Players = new Player[message.ReadByte()];
-                Self = Player.Set(message.ReadByte(), new Player(Game.Name));
+                Self = Player.Set(message.ReadByte(), new Player(Settings.Get("Name")));
                 Timers.Add("posSync", 1 / 20d);
                 Camera = new Camera();
                 Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));

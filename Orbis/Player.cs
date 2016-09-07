@@ -78,8 +78,8 @@ namespace Orbis
             get
             {
                 UpdateHitbox();
-                for (int x = (int)Math.Floor((Position.X / TileSize) - 1); x <= (int)Math.Ceiling((Position.X / TileSize) + 1); x++)
-                    for (int y = (int)Math.Floor((Position.Y / TileSize) - 1); y <= (int)Math.Ceiling((Position.Y / TileSize) + 1); y++)
+                for (var x = (int)Math.Floor((Position.X / TileSize) - 1); x <= (int)Math.Ceiling((Position.X / TileSize) + 1); x++)
+                    for (var y = (int)Math.Floor((Position.Y / TileSize) - 1); y <= (int)Math.Ceiling((Position.Y / TileSize) + 1); y++)
                         if (Game.InBounds(x, y) && Game.Tiles[x, y].Solid)
                         {
                             var hitbox = Polygon.CreateSquare(TileSize);
