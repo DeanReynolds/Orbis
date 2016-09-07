@@ -44,10 +44,10 @@ namespace Orbis
         public static double BlinkTimer;
         #endregion
         #region Game Variables
-        public const int TileSize = 24, ChunkWidth = 160, ChunkHeight = 120;
+        public const int TileSize = 24, ChunkWidth = 160, ChunkHeight = 120, LightingUpdateBuffer = 2;
         public static Tile[,] Tiles;
         public static Point Spawn;
-        public static byte Light = 255;
+        public static ushort Light = 285;
         public static BlendState Multiply = new BlendState() { AlphaSourceBlend = Blend.DestinationAlpha, AlphaDestinationBlend = Blend.Zero, AlphaBlendFunction = BlendFunction.Add, ColorSourceBlend = Blend.DestinationColor, ColorDestinationBlend = Blend.Zero, ColorBlendFunction = BlendFunction.Add };
         public static RenderTarget2D Lighting;
         public static Thread LightingThread;
@@ -176,8 +176,9 @@ namespace Orbis
                 if (Network.IsNullOrServer)
                 {
                     Camera = new Camera();
-                    Tiles = Generate(8400, 2400, out Spawn);
-                    Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling(Screen.BackBufferWidth / (float)TileSize + 1), (int)Math.Ceiling(Screen.BackBufferHeight / (float)TileSize + 1));
+                    //Tiles = Generate(8400, 2400, out Spawn);
+                    Tiles = Generate(2100, 600, out Spawn);
+                    Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
                     LightingThread = new Thread(() => { while (true) { UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                     LightingThread.Start();
                     Self.Position = new Vector2((Spawn.X * TileSize), (Spawn.Y * TileSize));
@@ -199,8 +200,8 @@ namespace Orbis
                                     packet.Add(other.Slot, other.Position);
                             packet.SendTo(player.Connection, NetDeliveryMethod.UnreliableSequenced, 1);
                         }
-                if (Mouse.ScrolledUp()) Camera.Zoom = MathHelper.Min(4, (Camera.Zoom + (ZoomRate * Camera.Zoom)));
-                if (Mouse.ScrolledDown()) Camera.Zoom = MathHelper.Max(.25f, (Camera.Zoom - (ZoomRate * Camera.Zoom)));
+                if (Mouse.ScrolledUp()) { Camera.Zoom = MathHelper.Min(4, (float)Math.Round((Camera.Zoom + ZoomRate), 2)); Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1)); }
+                if (Mouse.ScrolledDown()) { Camera.Zoom = MathHelper.Max(.25f, (float)Math.Round((Camera.Zoom - ZoomRate), 2)); Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1)); }
                 Network.Update();
                 //UpdateLighting();
             }
@@ -346,6 +347,9 @@ namespace Orbis
                 Screen.Draw(Lighting, new Rectangle(((int)Math.Floor((Camera.X - ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize) * TileSize),
                     ((int)Math.Floor((Camera.Y - ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize) * TileSize), (Lighting.Width * TileSize), (Lighting.Height * TileSize)));
                 Screen.Cease();
+                Screen.Setup();
+                Screen.DrawString(("Zoom: " + Camera.Zoom), Font.Load("Consolas"), new Vector2(2), Color.White, Color.Black, new Vector2(.35f));
+                Screen.Cease();
             }
             #endregion
             Profiler.Stop("Frame Draw");
@@ -382,20 +386,26 @@ namespace Orbis
             return tiles;
         }
         public static bool InBounds(int x, int y) { return !((x < 0) || (y < 0) || (x >= Tiles.GetLength(0)) || (y >= Tiles.GetLength(1))); }
-        public static byte AboveLight(int x, int y) { if (InBounds(x, (y - 1))) { if (Tiles[x, (y - 1)].Empty) return Light; else return Tiles[x, (y - 1)].Light; } else return Light; }
-        public static byte BelowLight(int x, int y) { if (InBounds(x, (y + 1))) { if (Tiles[x, (y + 1)].Empty) return Light; else return Tiles[x, (y + 1)].Light; } else return Light; }
-        public static byte LeftLight(int x, int y) { if (InBounds((x - 1), y)) { if (Tiles[(x - 1), y].Empty) return Light; else return Tiles[(x - 1), y].Light; } else return Light; }
-        public static byte RightLight(int x, int y) { if (InBounds((x + 1), y)) { if (Tiles[(x + 1), y].Empty) return Light; else return Tiles[(x + 1), y].Light; } else return Light; }
+        public static bool OffScreen(int x, int y)
+        {
+            int xMin = (int)Math.Floor((Camera.X - ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize - 1), xMax = (int)Math.Ceiling((Camera.X + ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize),
+                yMin = (int)Math.Floor((Camera.Y - ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize - 1), yMax = (int)Math.Ceiling((Camera.Y + ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize);
+            return ((x < xMin) || (y < yMin) || (x > xMax) || (y > yMax));
+        }
+        public static ushort AboveLight(int x, int y) { y--; if (OffScreen(x, y) || !InBounds(x, y)) return 0; if (Tiles[x, y].Empty) return Light; else return Tiles[x, y].Light; }
+        public static ushort BelowLight(int x, int y) { y++; if (OffScreen(x, y) || !InBounds(x, y)) return 0; if (Tiles[x, y].Empty) return Light; else return Tiles[x, y].Light; }
+        public static ushort LeftLight(int x, int y) { x--; if (OffScreen(x, y) || !InBounds(x, y)) return 0; if (Tiles[x, y].Empty) return Light; else return Tiles[x, y].Light; }
+        public static ushort RightLight(int x, int y) { x++; if (OffScreen(x, y) || !InBounds(x, y)) return 0; if (Tiles[x, y].Empty) return Light; else return Tiles[x, y].Light; }
         public static void UpdateLighting()
         {
-            int xMax = ((int)Math.Ceiling((Camera.X + ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize) + 8), yMax = ((int)Math.Ceiling((Camera.Y + ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize) + 8);
-            for (int x = ((int)Math.Floor((Camera.X - ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize) - 8); x <= xMax; x++)
-                for (int y = ((int)Math.Floor((Camera.Y - ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize) - 8); y <= yMax; y++)
+            int xMax = ((int)Math.Ceiling((Camera.X + ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize) + LightingUpdateBuffer), yMax = ((int)Math.Ceiling((Camera.Y + ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize) + LightingUpdateBuffer);
+            for (int x = ((int)Math.Floor((Camera.X - ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize) - LightingUpdateBuffer); x <= xMax; x++)
+                for (int y = ((int)Math.Floor((Camera.Y - ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize) - LightingUpdateBuffer); y <= yMax; y++)
                     if (InBounds(x, y))
                     {
-                        byte aboveLight = AboveLight(x, y), belowLight = BelowLight(x, y), leftLight = LeftLight(x, y), rightLight = RightLight(x, y),
+                        ushort aboveLight = AboveLight(x, y), belowLight = BelowLight(x, y), leftLight = LeftLight(x, y), rightLight = RightLight(x, y),
                             max = Math.Max(aboveLight, Math.Max(belowLight, Math.Max(leftLight, rightLight)));
-                        Tiles[x, y].Light = (byte)Math.Max(0, Math.Min(255, Math.Max((Tiles[x, y].Empty ? Light : 0), (max - (Tiles[x, y].BackOnly ? 6 : 15)))));
+                        Tiles[x, y].Light = (ushort)Math.Max(0, Math.Min(255, Math.Max((Tiles[x, y].Empty ? Light : 0), (max - (Tiles[x, y].BackOnly ? 6 : 25)))));
                     }
         }
         public static void DrawLighting()
@@ -405,11 +415,12 @@ namespace Orbis
             Globe.GraphicsDevice.Clear(Color.White);
             Screen.Setup();
             int xMax = (int)Math.Ceiling((Camera.X + ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize), yMax = (int)Math.Ceiling((Camera.Y + ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize);
-            for (int x = (int)Math.Floor((Camera.X - ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize); x < xMax; x++)
+            for (int x = (int)Math.Floor((Camera.X - ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize); x <= xMax; x++)
             {
-                for (int y = (int)Math.Floor((Camera.Y - ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize); y < yMax; y++)
+                for (int y = (int)Math.Floor((Camera.Y - ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize); y <= yMax; y++)
                 {
                     if (InBounds(x, y)) Screen.Draw(Textures.Pixel(Color.Black, true), new Rectangle(j, k, 1, 1), new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
+                    else Screen.Draw(Textures.Pixel(Color.Black, true), new Rectangle(j, k, 1, 1));
                     k++;
                 }
                 j++; k = 0;

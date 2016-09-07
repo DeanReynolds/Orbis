@@ -8,7 +8,9 @@ namespace Orbis
         public Tiles Fore { get { return (Tiles)ForeID; } set { ForeID = (byte)value; } }
         public Tiles Back { get { return (Tiles)BackID; } set { BackID = (byte)value; } }
         public enum Tiles { Empty, Dirt, Stone }
-        public byte ForeID, BackID, Light;
+        public byte ForeID, BackID;
+
+        public ushort Light;
 
         public bool Empty { get { return !((ForeID > 0) || (BackID > 0)); } }
         public bool DrawBack { get { return Fore.Matches(Tiles.Empty); } }
