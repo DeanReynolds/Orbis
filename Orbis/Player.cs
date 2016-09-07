@@ -1,11 +1,9 @@
 ﻿using System.Linq;
 using Lidgren.Network;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using SharpXNA;
 using SharpXNA.Collision;
 using SharpXNA.Input;
-using static SharpXNA.Textures;
 using System;
 
 namespace Orbis
@@ -116,7 +114,15 @@ namespace Orbis
         }
         public void Draw()
         {
+<<<<<<< HEAD
             Screen.Draw(Textures.Load("test_char.png"), Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
+=======
+            Screen.Draw(Textures.Load("test_char.png"), new Rectangle(
+                    (int)Position.X - (Textures.Load("test_char.png").Width/2), 
+                    (int)Position.Y - (Textures.Load("test_char.png").Height / 2),
+                    Textures.Load("test_char.png").Width, 
+                    Textures.Load("test_char.png").Height));
+>>>>>>> bb8c3b1805cba17057e9a94523d67d47ca027f1d
             Hitbox.Draw(Color.Red*.75f, .5f);
         }
 
