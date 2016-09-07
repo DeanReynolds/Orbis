@@ -1,14 +1,14 @@
 ﻿using Lidgren.Network;
 using SharpXNA;
+using System;
+using System.Threading;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace Orbis
 {
     using Packet = Network.Packet;
     using Frames = Game.Frames;
-    using Microsoft.Xna.Framework.Graphics;
-    using System;
-    using System.Threading;
 
     public static class Multiplayer
     {
@@ -24,6 +24,7 @@ namespace Orbis
         private static RenderTarget2D Lighting { get { return Game.Lighting; } set { Game.Lighting = value; } }
         private static Thread LightingThread { get { return Game.LightingThread; } set { Game.LightingThread = value; } }
         private static Camera Camera { get { return Game.Camera; } set { Game.Camera = value; } }
+        private static float LineThickness { get { return Game.LineThickness; } set { Game.LineThickness = value; } }
 
         public static void CreateLobby(string playerName)
         {
@@ -93,6 +94,7 @@ namespace Orbis
                 Self = Player.Set(message.ReadByte(), new Player(Settings.Get("Name")));
                 Timers.Add("posSync", 1 / 20d);
                 Camera = new Camera() { Zoom = Game.CameraZoom };
+                LineThickness = (1 / Camera.Zoom);
                 Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
                 LightingThread = new Thread(() => { while (true) { Game.UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                 Frame = Frames.LoadGame;

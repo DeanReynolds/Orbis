@@ -27,11 +27,7 @@ namespace Orbis
         public static Player[] Players;
         public static bool Quit = false;
 
-        public Game()
-        {
-            Globe.GraphicsDeviceManager = new GraphicsDeviceManager(this);
-            Content.RootDirectory = "Content";
-        }
+        public Game() { Globe.GraphicsDeviceManager = new GraphicsDeviceManager(this); Content.RootDirectory = "Content"; }
 
         public static ulong Version { get { return Globe.Version; } set { Globe.Version = value; } }
         public static float Speed { get { return Globe.Speed; } set { Globe.Speed = value; } }
@@ -53,6 +49,7 @@ namespace Orbis
         public static Thread LightingThread;
         public static Camera Camera;
         public const float CameraZoom = 2f, ZoomRate = .05f;
+        public static float LineThickness = 1;
         #endregion
 
         protected override void LoadContent()
@@ -83,8 +80,6 @@ namespace Orbis
             Settings.Parse();
             // If the user has already given their Username, send them straight to the Host/Connect screen.
             if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
-            //Multiplayer.CreateLobby(Name);
-            //Frame = Frames.LoadGame; // Start on the Load frame and skip the menu
         }
         protected override void Update(GameTime time)
         {
@@ -170,7 +165,7 @@ namespace Orbis
                 if (BlinkTimer <= 0) BlinkTimer += 1;
                 Network.Update();
             }
-                #endregion
+            #endregion
             #region LoadGame/Game
             else if (Frame == Frames.LoadGame)
             {
@@ -180,8 +175,8 @@ namespace Orbis
                 {
                     // Create camera.
                     Camera = new Camera {Zoom = CameraZoom};
-                    //Tiles = Generate(8400, 2400, out Spawn);
-                    Tiles = World.Generation.Generate(2100, 600, out Spawn);
+                    LineThickness = (1 / Camera.Zoom);
+                    Tiles = World.Generation.Generate(8400, 2400, out Spawn);
                     Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int) Math.Ceiling((Screen.BackBufferWidth/Camera.Zoom)/TileSize + 1), (int) Math.Ceiling((Screen.BackBufferHeight/Camera.Zoom)/TileSize + 1));
                     LightingThread = new Thread(() =>
                     {
@@ -215,9 +210,7 @@ namespace Orbis
                         }
                 Network.Update();
             }
-
             #endregion
-
             Profiler.Stop("Frame Update");
             Textures.Dispose();
             Sound.AutoTerminate();
@@ -229,16 +222,12 @@ namespace Orbis
             Performance.DrawFPS.Record(1/time.ElapsedGameTime.TotalSeconds);
             GraphicsDevice.Clear(Color.Black);
             Profiler.Start("Frame Draw");
-
             #region Menu/Connecting
-
             if (Frame == Frames.Menu)
             {
                 GraphicsDevice.Clear(Color.WhiteSmoke);
                 Screen.Setup(SpriteSortMode.Deferred, SamplerState.PointClamp);
                 Screen.DrawString("Developed by Dcrew", Font.Load("calibri 30"), new Vector2(Screen.BackBufferWidth/2f, Screen.BackBufferHeight - Screen.BackBufferHeight/8f), Color.Gray*.5f, Textures.Origin.Center, Scale*.5f);
-                // This is never used. Why?
-                var position = new Vector2(Screen.BackBufferWidth/8f, Screen.BackBufferHeight/2f - 40);
                 switch (MenuState)
                 {
                     case MenuStates.UsernameEntry:
@@ -292,7 +281,7 @@ namespace Orbis
                 Screen.DrawString("Connecting to " + Settings.Get("IP") + new string('.', 4 - (int) Math.Ceiling(BlinkTimer*4)), Font.Load("calibri 50"), new Vector2(Screen.BackBufferWidth/2f, Screen.BackBufferHeight/2f), Color.White, Textures.Origin.Center, Scale*.5f);
                 Screen.Cease();
             }
-                #endregion
+            #endregion
             #region LoadGame/Game
             else if (Frame == Frames.LoadGame)
             {
@@ -314,7 +303,7 @@ namespace Orbis
                             if (Tiles[x, y].ForeID != 0) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].ForeID));
                             if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].BackID), Color.DimGray);
                             //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + 2), (rect.Y + 2)), Color.White, new Vector2(.1f));
-                            Screen.Draw(Textures.Pixel(Color.Black, true), rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
+                            //Screen.Draw(Textures.Pixel(Color.Black, true), rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
                         }
                 foreach (var player in Players.Where(player => player != null)) player.Draw();
                 Screen.Cease();
@@ -334,11 +323,7 @@ namespace Orbis
             base.Draw(time);
         }
 
-        protected override void OnExiting(object sender, EventArgs args)
-        {
-            Multiplayer.QuitLobby();
-            base.OnExiting(sender, args);
-        }
+        protected override void OnExiting(object sender, EventArgs args) { Multiplayer.QuitLobby(); base.OnExiting(sender, args); }
 
         public static bool InBounds(int x, int y) { return !((x < 0) || (y < 0) || (x >= Tiles.GetLength(0)) || (y >= Tiles.GetLength(1))); }
         //public static bool OffScreen(int x, int y)
@@ -350,7 +335,6 @@ namespace Orbis
         public static ushort BelowLight(int x, int y) { y++; if (!InBounds(x, y)) return 0; return Tiles[x, y].Empty ? Light : Tiles[x, y].Light; }
         public static ushort LeftLight(int x, int y) { x--; if (!InBounds(x, y)) return 0; return Tiles[x, y].Empty ? Light : Tiles[x, y].Light; }
         public static ushort RightLight(int x, int y) { x++; if (!InBounds(x, y)) return 0; return Tiles[x, y].Empty ? Light : Tiles[x, y].Light; }
-
         public static void UpdateLighting()
         {
             int xMax = (int) Math.Ceiling((Camera.X + ((Screen.BackBufferWidth/2f)/Camera.Zoom))/TileSize) + LightingUpdateBuffer, yMax = ((int) Math.Ceiling((Camera.Y + ((Screen.BackBufferHeight/2f)/Camera.Zoom))/TileSize) + LightingUpdateBuffer);
@@ -362,7 +346,6 @@ namespace Orbis
                         Tiles[x, y].Light = (ushort) Math.Max(0, Math.Min(255, Math.Max((Tiles[x, y].Empty ? Light : 0), (max - (Tiles[x, y].BackOnly ? 6 : 25)))));
                     }
         }
-
         public static void DrawLighting()
         {
             int j = 0, k = 0;

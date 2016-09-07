@@ -4,17 +4,19 @@ using Microsoft.Xna.Framework;
 using SharpXNA;
 using SharpXNA.Collision;
 using SharpXNA.Input;
+using static SharpXNA.Textures;
 using System;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace Orbis
 {
-    using Microsoft.Xna.Framework.Graphics;
-    using static Textures;
     using Packet = Network.Packet;
     using Packets = Multiplayer.Packets;
 
     public class Player
     {
+        private static float LineThickness { get { return Game.LineThickness; } set { Game.LineThickness = value; } }
+
         private const int TileSize = Game.TileSize;
 
         /// <summary>
@@ -75,7 +77,7 @@ namespace Orbis
         // We can't just say TileSize * 2 and TileSize * 3 for the dimensions because the player has to be able to get down holes and through
         //  tunnels easily. Therefore he must be a couple of pixels shorter than 3 tiles high and a couple of pixels thinner than 2 tiles wide.
         // 12x22 is the size of the test character, by the way. This may change.
-        public void Load() { Scale = new Vector2(12, 24); Hitbox = Polygon.CreateRectangle(Scale); }
+        public void Load() { Scale = new Vector2(12, 22); Hitbox = Polygon.CreateRectangle(Scale); }
         public bool Collides
         {
             get
@@ -117,7 +119,7 @@ namespace Orbis
         public void Draw()
         {
             Screen.Draw(Textures.Load("test_char.png"), Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
-            Hitbox.Draw(Color.Red*.75f, .5f);
+            Hitbox.Draw((Color.Red*.75f), LineThickness);
         }
 
         public void Move(Vector2 offset)
