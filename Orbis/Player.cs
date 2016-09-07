@@ -1,11 +1,9 @@
 ﻿using System.Linq;
 using Lidgren.Network;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using SharpXNA;
 using SharpXNA.Collision;
 using SharpXNA.Input;
-using static SharpXNA.Textures;
 using System;
 
 namespace Orbis
@@ -109,8 +107,11 @@ namespace Orbis
         }
         public void Draw()
         {
-            const float tileSizeHalved = (TileSize / 2f); const int tileSizeDoubled = (TileSize * 2);
-            Screen.Draw(Textures.Load("test_char.png"), new Rectangle((int)(Position.X - tileSizeHalved), (int)(Position.Y - tileSizeHalved), 12, 22));
+            Screen.Draw(Textures.Load("test_char.png"), new Rectangle(
+                    (int)Position.X - (Textures.Load("test_char.png").Width/2), 
+                    (int)Position.Y - (Textures.Load("test_char.png").Height / 2),
+                    Textures.Load("test_char.png").Width, 
+                    Textures.Load("test_char.png").Height));
             Hitbox.Draw(Color.Red*.75f, .5f);
         }
 
