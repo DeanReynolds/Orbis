@@ -92,7 +92,7 @@ namespace Orbis
                 Players = new Player[message.ReadByte()];
                 Self = Player.Set(message.ReadByte(), new Player(Game.Name));
                 Timers.Add("posSync", 1 / 20d);
-                Camera = new Camera();
+                Camera = new Camera() { Zoom = 2 };
                 Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
                 LightingThread = new Thread(() => { while (true) { Game.UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                 Frame = Frames.LoadGame;

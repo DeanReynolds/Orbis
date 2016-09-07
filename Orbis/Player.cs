@@ -72,7 +72,10 @@ namespace Orbis
         private static Player Self => Game.Self;
         private static Player[] Players => Game.Players;
 
-        public void Load() { Scale = new Vector2((TileSize * 2), (TileSize * 3)); Hitbox = Polygon.CreateRectangle(Scale); }
+        // We can't just say TileSize * 2 and TileSize * 3 for the dimensions because the player has to be able to get down holes and through
+        //  tunnels easily. Therefore he must be a couple of pixels shorter than 3 tiles high and a couple of pixels thinner than 2 tiles wide.
+        // 12x22 is the size of the test character, by the way. This may change.
+        public void Load() { Scale = new Vector2(12, 24); Hitbox = Polygon.CreateRectangle(Scale); }
         public bool Collides
         {
             get
@@ -107,14 +110,13 @@ namespace Orbis
             if (LastPosition != Position)
             {
                 if (Position.X > LastPosition.X) Direction = 1;
-                else Direction = -1;
+                else if (Position.X < LastPosition.X) Direction = -1;
                 LastPosition = Position;
             }
         }
         public void Draw()
         {
-            float tileSizeHalved = (TileSize / 2f); int tileSizeDoubled = (TileSize * 2);
-            Screen.Draw(Textures.Load("test_char.png"), Position, Origin.Center, new Vector2(3), ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
+            Screen.Draw(Textures.Load("test_char.png"), Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
             Hitbox.Draw(Color.Red*.75f, .5f);
         }
 

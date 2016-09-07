@@ -32,3 +32,4 @@ C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D9.x
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\obj\x86\Debug\Orbis.csprojResolveAssemblyReference.cache
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\obj\x86\Debug\Orbis.exe
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\obj\x86\Debug\Orbis.pdb
+C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\Content\Textures\test_char.png
