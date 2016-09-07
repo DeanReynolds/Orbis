@@ -32,7 +32,7 @@ namespace Orbis
         /// <summary>
         /// The location of the player in the world.
         /// </summary>
-        public Vector2 Position;
+        public Vector2 Position, LastPosition;
         /// <summary>
         /// The player slot that this player occupies in the current server.
         /// </summary>
@@ -44,6 +44,7 @@ namespace Orbis
         public Vector2 Scale;
 
         public int TileX, TileY, LastTileX, LastTileY;
+        public sbyte Direction;
 
         /// <summary>
         /// Creates a player with only a name.
@@ -103,11 +104,17 @@ namespace Orbis
                 Move(Velocity);
                 if (Timers.Tick("posSync") && Network.IsClient) new Packet((byte)Packets.Position, Position).Send(NetDeliveryMethod.UnreliableSequenced, 1);
             }
+            if (LastPosition != Position)
+            {
+                if (Position.X > LastPosition.X) Direction = 1;
+                else Direction = -1;
+                LastPosition = Position;
+            }
         }
         public void Draw()
         {
             float tileSizeHalved = (TileSize / 2f); int tileSizeDoubled = (TileSize * 2);
-            Screen.Draw(Textures.Load("test_char.png"), new Rectangle((int)(Position.X - tileSizeHalved), (int)(Position.Y - tileSizeHalved), tileSizeDoubled, tileSizeDoubled));
+            Screen.Draw(Textures.Load("test_char.png"), Position, Origin.Center, new Vector2(3), ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
             Hitbox.Draw(Color.Red*.75f, .5f);
         }
 
