@@ -1,42 +1,8 @@
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\calibri 20.xnb
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\calibri 30.xnb
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\calibri 50.xnb
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\Consolas.xnb
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Orbis.exe
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Orbis.pdb
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\ColorMine.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\CsVorbis.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\Lidgren.Network.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\MonoGame.Framework.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpXNA.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.MediaFoundation.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.XAudio2.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.DXGI.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D11.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct2D1.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.XInput.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.RawInput.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D9.dll
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\MonoGame.Framework.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.MediaFoundation.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.XAudio2.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.DXGI.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D11.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct2D1.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.XInput.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.RawInput.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D9.xml
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\obj\x86\Debug\Orbis.csprojResolveAssemblyReference.cache
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\obj\x86\Debug\Orbis.exe
-c:\users\dean\documents\visual studio 2015\Projects\Orbis\Orbis\obj\x86\Debug\Orbis.pdb
-C:\Users\Dean\Documents\GitHub\Orbis\Orbis\obj\x86\Debug\Orbis.exe
-C:\Users\Dean\Documents\GitHub\Orbis\Orbis\obj\x86\Debug\Orbis.pdb
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\calibri 20.xnb
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\calibri 30.xnb
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\calibri 50.xnb
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\Content\Fonts\Consolas.xnb
+C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\Content\test_char.xnb
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\Orbis.exe
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\Orbis.pdb
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\ColorMine.dll
@@ -64,3 +30,5 @@ C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\SharpDX.XInput.xml
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\SharpDX.RawInput.xml
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\bin\Windows\Debug\SharpDX.Direct3D9.xml
 C:\Users\Dean\Documents\GitHub\Orbis\Orbis\obj\x86\Debug\Orbis.csprojResolveAssemblyReference.cache
+C:\Users\Dean\Documents\GitHub\Orbis\Orbis\obj\x86\Debug\Orbis.exe
+C:\Users\Dean\Documents\GitHub\Orbis\Orbis\obj\x86\Debug\Orbis.pdb
