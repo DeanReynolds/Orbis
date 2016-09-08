@@ -26,15 +26,12 @@ namespace Orbis.World
                     else { tiles[x, y].Fore = tiles[x, y].Back = Tile.Tiles.Stone; }
                 }
                 treeSpace++; surfaceLength++;
-                if (surfaceLength > 1)
+                if ((surfaceLength > 1) && Globe.Chance(30))
                 {
-                    if (Globe.Chance(30))
-                    {
-                        surface += Globe.Random(-1, 1);
-                        if (surface < minSurface) surface = minSurface;
-                        if (surface > maxSurface) surface = maxSurface;
-                        surfaceLength = 0;
-                    }
+                    surface += Globe.Random(-1, 1);
+                    if (surface < minSurface) surface = minSurface;
+                    if (surface > maxSurface) surface = maxSurface;
+                    surfaceLength = 0;
                 }
             }
             return tiles;
