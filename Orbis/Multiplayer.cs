@@ -14,7 +14,7 @@ namespace Orbis
     {
         public enum Packets { Connection, Disconnection, Initial, Position, PlayerData, TileData, RectangleOfTiles, RowOfTiles, ColumnOfTiles }
 
-        private const int TileSize = Game.TileSize, ChunkWidth = Game.ChunkWidth, ChunkHeight = Game.ChunkHeight;
+        private const int TileSize = Game.TileSize, ChunkWidth = Game.ChunkWidth, ChunkHeight = Game.ChunkHeight, ChunkSyncSize = 3;
 
         private static Frames Frame { get { return Game.Frame; } set { Game.Frame = value; } }
         private static Player Self{ get { return Game.Self; } set { Game.Self = value; } }
@@ -49,7 +49,7 @@ namespace Orbis
                 var connector = Player.Add(new Player(message.ReadString()) {Connection = message.SenderConnection});
                 if (connector != null)
                 {
-                    var data = new Packet((byte) Packets.Initial, (byte) Players.Length, connector.Slot);
+                    var data = new Packet((byte) Packets.Initial, (byte)(Players.Length - 1), connector.Slot);
                     message.SenderConnection.Approve(data.Construct());
                     new Packet((byte)Packets.Connection, connector.Slot, connector.Name).Send(
                         message.SenderConnection);
@@ -90,7 +90,7 @@ namespace Orbis
             #region Initial Data
             else if (packet == Packets.Initial)
             {
-                Players = new Player[message.ReadByte()];
+                Players = new Player[message.ReadByte() + 1];
                 Self = Player.Set(message.ReadByte(), new Player(Settings.Get("Name")));
                 Timers.Add("posSync", 1 / 20d);
                 Camera = new Camera() { Zoom = Game.CameraZoom };
@@ -142,6 +142,7 @@ namespace Orbis
             }
             #endregion
             #region Row/Column Of Tiles
+            else if (packet == Packets.RectangleOfTiles) ReadRectangleOfTiles(ref message, ref Game.Tiles);
             else if (packet == Packets.ColumnOfTiles) ReadColumnOfTiles(ref message, ref Game.Tiles);
             else if (packet == Packets.RowOfTiles) ReadRowOfTiles(ref message, ref Game.Tiles);
             #endregion
@@ -155,10 +156,15 @@ namespace Orbis
                         sender.Position = message.ReadVector2();
                         sender.TileX = (int)(sender.Position.X / TileSize);
                         sender.TileY = (int)(sender.Position.Y / TileSize);
-                        while (sender.TileX < sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.TileX - (ChunkWidth / 2)), (sender.TileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX--; data.SendTo(sender.Connection); }
-                        while (sender.TileX > sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.TileX + ((ChunkWidth / 2) - 1)), (sender.TileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX++; data.SendTo(sender.Connection); }
-                        while (sender.TileY < sender.LastTileY) { var data = new Packet((byte)Packets.RowOfTiles); WriteRowOfTiles(ref Game.Tiles, ref data, (sender.TileX - (ChunkWidth / 2)), (sender.TileY - (ChunkHeight / 2)), ChunkWidth); sender.LastTileY--; data.SendTo(sender.Connection); }
-                        while (sender.TileY > sender.LastTileY) { var data = new Packet((byte)Packets.RowOfTiles); WriteRowOfTiles(ref Game.Tiles, ref data, (sender.TileX - (ChunkWidth / 2)), (sender.TileY + ((ChunkHeight / 2) - 1)), ChunkWidth); sender.LastTileY++; data.SendTo(sender.Connection); }
+                        //while (sender.TileX < sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2) - 1), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX--; data.SendTo(sender.Connection); }
+                        //while (sender.TileX > sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX + ((ChunkWidth / 2))), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX++; data.SendTo(sender.Connection); }
+                        //while (sender.TileY < sender.LastTileY) { var data = new Packet((byte)Packets.RowOfTiles); WriteRowOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2)), (sender.LastTileY - (ChunkHeight / 2) - 1), ChunkWidth); sender.LastTileY--; data.SendTo(sender.Connection); }
+                        //while (sender.TileY > sender.LastTileY) { var data = new Packet((byte)Packets.RowOfTiles); WriteRowOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2)), (sender.LastTileY + ((ChunkHeight / 2))), ChunkWidth); sender.LastTileY++; data.SendTo(sender.Connection); }
+                        const int chunkSyncSizeMinus = (ChunkSyncSize - 1);
+                        while (sender.TileX < (sender.LastTileX - chunkSyncSizeMinus)) { var data = new Packet((byte)Packets.RectangleOfTiles); WriteRectangleOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2) - ChunkSyncSize), (sender.LastTileY - (ChunkHeight / 2)), ChunkSyncSize, ChunkHeight); sender.LastTileX -= ChunkSyncSize; data.SendTo(sender.Connection); }
+                        while (sender.TileX > (sender.LastTileX + chunkSyncSizeMinus)) { var data = new Packet((byte)Packets.RectangleOfTiles); WriteRectangleOfTiles(ref Game.Tiles, ref data, (sender.LastTileX + (ChunkWidth / 2) + chunkSyncSizeMinus), (sender.LastTileY - (ChunkHeight / 2)), ChunkSyncSize, ChunkHeight); sender.LastTileX += ChunkSyncSize; data.SendTo(sender.Connection); }
+                        while (sender.TileY < (sender.LastTileY - chunkSyncSizeMinus)) { var data = new Packet((byte)Packets.RectangleOfTiles); WriteRectangleOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2)), (sender.LastTileY - (ChunkHeight / 2) - ChunkSyncSize), ChunkWidth, ChunkSyncSize); sender.LastTileY -= ChunkSyncSize; data.SendTo(sender.Connection); }
+                        while (sender.TileY > (sender.LastTileY + chunkSyncSizeMinus)) { var data = new Packet((byte)Packets.RectangleOfTiles); WriteRectangleOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2)), (sender.LastTileY - (ChunkHeight / 2) + chunkSyncSizeMinus), ChunkWidth, ChunkSyncSize); sender.LastTileY += ChunkSyncSize; data.SendTo(sender.Connection); }
                     }
                 }
                 else
@@ -180,12 +186,12 @@ namespace Orbis
         {
             data.Add((ushort)x, (ushort)y, (ushort)width, (ushort)height);
             int endX = (x + width), endY = (y + height);
-            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) data.Add(tiles[j, k].ForeID, tiles[j, k].BackID);
+            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) data.Add(tiles[j, k].ForeID, tiles[j, k].BackID);
         }
         public static void ReadRectangleOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), width = data.ReadUInt16(), height = data.ReadUInt16(), endX = (x + width), endY = (y + height);
-            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) { tiles[j, k].ForeID = data.ReadByte(); tiles[j, k].BackID = data.ReadByte(); }
+            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) { tiles[j, k].ForeID = data.ReadByte(); tiles[j, k].BackID = data.ReadByte(); }
         }
         public static void WriteRowOfTiles(ref Tile[,] tiles, ref Packet data, int x, int y, int width)
         {

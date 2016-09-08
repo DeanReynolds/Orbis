@@ -48,7 +48,7 @@ namespace Orbis
         public static RenderTarget2D Lighting;
         public static Thread LightingThread;
         public static Camera Camera;
-        public const float CameraZoom = 2f, ZoomRate = .05f, CursorOpacitySpeed = .01f, CursorOpacityMin = .25f, CursorOpacityMax = .75f;
+        public const float CameraZoom = 2f, ZoomRate = .05f, CursorOpacitySpeed = .02f, CursorOpacityMin = .25f, CursorOpacityMax = .75f;
         public static sbyte CursorOpacitySpeedDir = (sbyte)Globe.Pick(-1, 1);
         public static float LineThickness = 1, CursorOpacity = Globe.Random(CursorOpacityMin, CursorOpacityMax);
         public static int MouseTileX, MouseTileY;
@@ -79,7 +79,6 @@ namespace Orbis
             Screen.Set(1920, 1080, true);
             Screen.Expand(true);
             IsMouseVisible = true;
-            Settings.Parse();
             // If the user has already given their Username, send them straight to the Host/Connect screen.
             if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
         }
@@ -95,7 +94,6 @@ namespace Orbis
             if (Keyboard.Pressed(Keyboard.Keys.F3)) Profiler.Enabled = !Profiler.Enabled;
             Profiler.Start("Frame Update");
             #region Menu/Connecting
-            if (!string.IsNullOrEmpty(Settings.Get("Name"))) MenuState = MenuStates.HostConnect;
             if (Frame == Frames.Menu)
             {
                 switch (MenuState)
@@ -105,14 +103,9 @@ namespace Orbis
                         {
                             BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
                             if (BlinkTimer <= 0) BlinkTimer += .6;
-                            var name = "";
-                            name = name.AcceptInput(
-                                String.InputFlags.NoLeadingSpaces | String.InputFlags.NoRepeatingSpaces, 20);
-                            if (Keyboard.Pressed(Keyboard.Keys.Enter) && !name.IsNullOrEmpty())
-                            {
-                                if (!string.IsNullOrEmpty(name)) Settings.Set("Name", name);
-                                MenuState = MenuStates.HostConnect;
-                            }
+                            var name = Settings.Get("Name").AcceptInput(String.InputFlags.NoLeadingSpaces | String.InputFlags.NoRepeatingSpaces, 20);
+                            Settings.Set("Name", name);
+                            if (Keyboard.Pressed(Keyboard.Keys.Enter) && !name.IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
                         }
                         break;
                     case MenuStates.HostConnect:
@@ -138,16 +131,15 @@ namespace Orbis
                         {
                             BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
                             if (BlinkTimer <= 0) BlinkTimer += .6;
-                            var ip = "";
-                            ip = ip.AcceptInput(
+                            var ip = Settings.Get("IP").AcceptInput(
                                     String.InputFlags.NoLeadingPeriods | String.InputFlags.NoLetters |
                                     String.InputFlags.NoSpecalCharacters | String.InputFlags.NoSpaces |
                                     String.InputFlags.AllowPeriods |
                                     String.InputFlags.NoRepeatingPeriods | String.InputFlags.AllowColons |
                                     String.InputFlags.NoRepeatingColons | String.InputFlags.NoLeadingPeriods, 21);
+                            Settings.Set("IP", ip);
                             if (Keyboard.Pressed(Keyboard.Keys.Enter) && !ip.IsNullOrEmpty())
                             {
-                                Settings.Set("IP", ip);
                                 Network.Connect(Settings.Get("IP").Split(':')[0],
                                     Settings.Get("IP").Contains(":") ? Convert.ToInt32(Settings.Get("IP").Split(':')[1]) : 6121,
                                     new Packet(null, Settings.Get("Name")));
@@ -204,6 +196,9 @@ namespace Orbis
                                 packet.Add(other.Slot, other.Position);
                             packet.SendTo(player.Connection, NetDeliveryMethod.UnreliableSequenced, 1);
                         }
+                // I need the Zooming to test multiplayer tile syncing
+                if (Mouse.ScrolledUp()) { Camera.Zoom = MathHelper.Min(4, (float)Math.Round((Camera.Zoom + ZoomRate), 2)); Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1)); }
+                if (Mouse.ScrolledDown()) { Camera.Zoom = MathHelper.Max(.25f, (float)Math.Round((Camera.Zoom - ZoomRate), 2)); Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1)); }
                 Network.Update();
             }
             #endregion
@@ -296,13 +291,13 @@ namespace Orbis
                         if (InBounds(x, y) && (Tiles[x, y].Light > 0)/*Draw tile only if not in complete darkness*/)
                         {
                             var rect = new Rectangle(x*TileSize, y*TileSize, TileSize, TileSize);
+                            if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].BackID), Color.DarkGray);
                             if (Tiles[x, y].ForeID != 0) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].ForeID));
-                            if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].BackID), Color.DimGray);
                             //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + 2), (rect.Y + 2)), Color.White, new Vector2(.1f));
                             //Screen.Draw(Textures.Pixel(Color.Black, true), rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
                         }
                 foreach (var player in Players.Where(player => player != null)) player.Draw();
-                Screen.FillRectangle(new Rectangle((MouseTileX * TileSize), (MouseTileY * TileSize), TileSize, TileSize), (Color.White * CursorOpacity));
+                Screen.Draw(Textures.Load("Selection.png"), new Rectangle((MouseTileX * TileSize), (MouseTileY * TileSize), TileSize, TileSize), (Color.White * CursorOpacity));
                 Screen.Cease();
                 Screen.Setup(SpriteSortMode.Deferred, Multiply, Camera.View(Camera.Samplers.Point));
                 Screen.Draw(Lighting, new Rectangle(
@@ -310,6 +305,9 @@ namespace Orbis
                     (int)Math.Floor((Camera.Y - ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize) * TileSize,
                     Lighting.Width * TileSize,
                     Lighting.Height * TileSize));
+                Screen.Cease();
+                Screen.Setup();
+                Screen.DrawString(("Zoom: " + Camera.Zoom), Font.Load("Consolas"), new Vector2(2), Color.White, Color.Black, new Vector2(.35f));
                 Screen.Cease();
             }
             #endregion
@@ -322,7 +320,8 @@ namespace Orbis
 
         protected override void OnExiting(object sender, EventArgs args) { Multiplayer.QuitLobby(); base.OnExiting(sender, args); }
 
-        public static bool InBounds(int x, int y) { return !((x < 0) || (y < 0) || (x >= Tiles.GetLength(0)) || (y >= Tiles.GetLength(1))); }
+        public static bool InBounds(int x, int y) { return InBounds(ref Tiles, x, y); }
+        public static bool InBounds(ref Tile[,] tiles, int x, int y) { return !((x < 0) || (y < 0) || (x >= tiles.GetLength(0)) || (y >= tiles.GetLength(1))); }
         //public static bool OffScreen(int x, int y)
         //{
         //    int xMin = (int) Math.Floor((Camera.X - ((Screen.BackBufferWidth/2f)/Camera.Zoom))/TileSize - 1), xMax = (int) Math.Ceiling((Camera.X + ((Screen.BackBufferWidth/2f)/Camera.Zoom))/TileSize), yMin = (int) Math.Floor((Camera.Y - ((Screen.BackBufferHeight/2f)/Camera.Zoom))/TileSize - 1), yMax = (int) Math.Ceiling((Camera.Y + ((Screen.BackBufferHeight/2f)/Camera.Zoom))/TileSize);
@@ -345,6 +344,7 @@ namespace Orbis
         }
         public static void DrawLighting()
         {
+            Profiler.Start("Draw Lighting");
             int j = 0, k = 0;
             Globe.GraphicsDevice.SetRenderTarget(Lighting);
             Globe.GraphicsDevice.Clear(Color.White);
@@ -354,8 +354,8 @@ namespace Orbis
             {
                 for (var y = (int) Math.Floor((Camera.Y - ((Screen.BackBufferHeight/2f)/Camera.Zoom))/TileSize); y <= yMax; y++)
                 {
-                    if (InBounds(x, y)) Screen.Draw(Textures.Pixel(Color.Black, true), new Rectangle(j, k, 1, 1), new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
-                    else Screen.Draw(Textures.Pixel(Color.Black, true), new Rectangle(j, k, 1, 1));
+                    if (InBounds(x, y)) Screen.Draw(Textures.Load("Light.png"), new Rectangle(j, k, 1, 1), new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
+                    else Screen.Draw(Textures.Load("Light.png"), new Rectangle(j, k, 1, 1));
                     k++;
                 }
                 j++;
@@ -363,6 +363,7 @@ namespace Orbis
             }
             Screen.Cease();
             Globe.GraphicsDevice.SetRenderTarget(null);
+            Profiler.Stop("Draw Lighting");
         }
     }
 }
