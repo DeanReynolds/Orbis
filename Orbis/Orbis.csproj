@@ -41,10 +41,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ColorMine.dll" Condition=" '$(Configuration)' == 'Release' " />
-    <Compile Include="CsVorbis.dll" Condition=" '$(Configuration)' == 'Release' " />
     <Compile Include="Game.cs" />
-    <Compile Include="Lidgren.Network.dll" Condition=" '$(Configuration)' == 'Release' " />
     <Compile Include="Multiplayer.cs" />
     <Compile Include="Player.cs" />
     <Compile Include="Program.cs" />
@@ -87,6 +84,10 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Icon.ico" />
+    <Content Include="lib\ColorMine.dll" />
+    <Content Include="lib\CsVorbis.dll" />
+    <Content Include="lib\Lidgren.Network.dll" />
+    <Content Include="lib\SharpXNA.dll" />
   </ItemGroup>
   <ItemGroup>
     <MonoGameContentReference Include="Content\Content.mgcb" />
