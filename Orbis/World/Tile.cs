@@ -7,19 +7,19 @@ namespace Orbis
     {
         public Tiles Fore { get { return (Tiles)ForeID; } set { ForeID = (byte)value; } }
         public Tiles Back { get { return (Tiles)BackID; } set { BackID = (byte)value; } }
-        public enum Tiles { Air, Grass, Dirt, Stone, Log, Leaves, Torch }
+        public enum Tiles { Air, Black, Grass, Dirt, Stone, Log, Leaves, Torch }
         public byte ForeID, BackID;
 
         public ushort Light;
 
         public bool Empty => !((ForeID > 0) || (BackID > 0));
         public bool DrawBack => Fore.Matches(Tiles.Air, Tiles.Leaves);
-        public bool Solid => Fore.Matches(Tiles.Grass, Tiles.Dirt, Tiles.Stone);
+        public bool Solid => Fore.Matches(Tiles.Black, Tiles.Grass, Tiles.Dirt, Tiles.Stone);
         public bool BackOnly => ((ForeID == 0) && (BackID > 0));
         public ushort LightGenerated => (ushort)((Fore == Tiles.Torch) ? 275 : 0);
         public float MovementSpeed => (3);
         public float MovementResistance => (!Solid ? 1 : 10);
-        public ushort ForeLightDim => (ushort)((Fore == Tiles.Leaves) ? 12 : 25);
+        public ushort ForeLightDim => (ushort)((Fore == Tiles.Black) ? ushort.MaxValue : (Fore == Tiles.Leaves) ? 12 : 25);
         public ushort BackLightDim => (ushort)((Back == Tiles.Leaves) ? 3 : 6);
 
         public const int TextureSize = 8, TilesetWidth = 16;

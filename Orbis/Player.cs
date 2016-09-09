@@ -117,7 +117,9 @@ namespace Orbis
                 if (Keyboard.Holding(Keyboard.Keys.D)) Velocity.X = (MovementSpeed / 2);
             }
             Move(Velocity); UpdateTilePos();
-            Camera.Position = Position;
+            var scrWidth = ((Screen.BackBufferWidth / 2f) / Camera.Zoom); var scrHeight = ((Screen.BackBufferHeight / 2f) / Camera.Zoom);
+            Camera.Position = new Vector2(MathHelper.Clamp(Position.X, (scrWidth + TileSize), (((Tiles.GetLength(0) * TileSize) - scrWidth) - TileSize)),
+                MathHelper.Clamp(Position.Y, (scrHeight + TileSize), (((Tiles.GetLength(1) * TileSize) - scrHeight) - TileSize)));
             /*if ((LastTileX != TileX) || (LastTileY != TileY)) */{ Game.UpdateCamTilesPos(); UpdateLastTilePos(); }
             if (Timers.Tick("posSync") && Network.IsClient) new Packet((byte)Packets.Position, Position).Send(NetDeliveryMethod.UnreliableSequenced, 1);
         }

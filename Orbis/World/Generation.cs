@@ -11,11 +11,13 @@ namespace Orbis.World
             int minSurface = ((height / 4) - (height / 10)), maxSurface = (height / 4) + (height / 10), surface = Globe.Random(minSurface, maxSurface),
                 surfaceLength = 0, treeSpace = width;
             spawn = Point.Zero;
-            for (var x = 0; x < width; x++)
+            for (var x = 0; x < width; x++) { tiles[x, 0].Fore = tiles[x, (height - 1)].Fore = Tile.Tiles.Black; }
+            for (var y = 0; y < height; y++) { tiles[0, y].Fore = tiles[(width - 1), y].Fore = Tile.Tiles.Black; }
+            for (var x = 1; x < (width - 1); x++)
             {
                 if (x == width / 2) spawn = new Point(x, surface - 3);
                 var underground = (surface + Globe.Random(10, 12));
-                for (var y = surface; y < height; y++)
+                for (var y = surface; y < (height - 1); y++)
                 {
                     if (y == surface)
                     {

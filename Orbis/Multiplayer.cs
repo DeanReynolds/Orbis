@@ -136,7 +136,7 @@ namespace Orbis
                     Self.UpdateTilePos(); Self.UpdateLastTilePos();
                     Camera.Position = Self.Position;
                     Game.UpdateCamTilesPos();
-                    Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
+                    Game.InitializeLighting();
                     LightingThread = new Thread(() => { while (true) { Game.UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                     LightingThread.Start();
                     Game.LoadGameTextures();
