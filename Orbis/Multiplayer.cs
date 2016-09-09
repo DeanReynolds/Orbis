@@ -96,8 +96,6 @@ namespace Orbis
                 Camera = new Camera() { Zoom = Game.CameraZoom };
                 Game.UpdateResCamStuff();
                 LineThickness = (1 / Camera.Zoom);
-                Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
-                LightingThread = new Thread(() => { while (true) { Game.UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                 Frame = Frames.LoadGame;
                 new Packet((byte)Packets.PlayerData).Send();
                 new Packet((byte)Packets.TileData).Send();
@@ -126,8 +124,7 @@ namespace Orbis
                     data.Add((ushort)Spawn.X, (ushort)Spawn.Y);
                     Player sender = Player.Get(message.SenderConnection);
                     sender.Position = new Vector2((Spawn.X * TileSize), (Spawn.Y * TileSize));
-                    sender.TileX = sender.LastTileX = Spawn.X;
-                    sender.TileY = sender.LastTileY = Spawn.Y;
+                    sender.TileX = sender.LastTileX = Spawn.X; sender.TileY = sender.LastTileY = Spawn.Y;
                     data.SendTo(message.SenderConnection);
                 }
                 else
@@ -136,8 +133,13 @@ namespace Orbis
                     ReadRectangleOfTiles(ref message, ref Game.Tiles);
                     Spawn = new Point(message.ReadUInt16(), message.ReadUInt16());
                     Self.Position = new Vector2((Spawn.X * TileSize), (Spawn.Y * TileSize));
+                    Self.UpdateTilePos(); Self.UpdateLastTilePos();
                     Camera.Position = Self.Position;
+                    Game.UpdateCamTilesPos();
+                    Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
+                    LightingThread = new Thread(() => { while (true) { Game.UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                     LightingThread.Start();
+                    Game.LoadGameTextures();
                     Frame = Frames.Game;
                 }
             }
@@ -155,8 +157,7 @@ namespace Orbis
                     if (sender != null)
                     {
                         sender.Position = message.ReadVector2();
-                        sender.TileX = (int)(sender.Position.X / TileSize);
-                        sender.TileY = (int)(sender.Position.Y / TileSize);
+                        sender.UpdateTilePos();
                         //while (sender.TileX < sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2) - 1), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX--; data.SendTo(sender.Connection); }
                         //while (sender.TileX > sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX + ((ChunkWidth / 2))), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX++; data.SendTo(sender.Connection); }
                         //while (sender.TileY < sender.LastTileY) { var data = new Packet((byte)Packets.RowOfTiles); WriteRowOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2)), (sender.LastTileY - (ChunkHeight / 2) - 1), ChunkWidth); sender.LastTileY--; data.SendTo(sender.Connection); }

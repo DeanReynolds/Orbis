@@ -15,6 +15,7 @@ namespace Orbis
 
     public class Player
     {
+        private static Camera Camera { get { return Game.Camera; } set { Game.Camera = value; } }
         private static float LineThickness { get { return Game.LineThickness; } set { Game.LineThickness = value; } }
 
         private const int TileSize = Game.TileSize;
@@ -107,7 +108,9 @@ namespace Orbis
                     if (Keyboard.Holding(Keyboard.Keys.A)) Move(new Vector2(-(float)(XSpeed * time.ElapsedGameTime.TotalSeconds), 0));
                     if (Keyboard.Holding(Keyboard.Keys.D)) Move(new Vector2((float)(XSpeed * time.ElapsedGameTime.TotalSeconds), 0));
                 }
-                Move(Velocity);
+                Move(Velocity); UpdateTilePos();
+                Camera.Position = Position;
+                if ((LastTileX != TileX) || (LastTileY != TileY)) { Game.UpdateCamTilesPos(); UpdateLastTilePos(); }
                 if (Timers.Tick("posSync") && Network.IsClient) new Packet((byte)Packets.Position, Position).Send(NetDeliveryMethod.UnreliableSequenced, 1);
             }
             if (LastPosition != Position)
@@ -119,7 +122,7 @@ namespace Orbis
         }
         public void Draw()
         {
-            Screen.Draw(Textures.Load("test_char.png"), Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
+            Screen.Draw(Game.PlayerTexture, Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
             Hitbox.Draw((Color.Red*.75f), LineThickness);
         }
 
@@ -152,6 +155,8 @@ namespace Orbis
         }
 
         public void UpdateHitbox() { Hitbox.Position = Position; }
+        public void UpdateTilePos() { TileX = (int)(Position.X / TileSize); TileY = (int)(Position.Y / TileSize); }
+        public void UpdateLastTilePos() { LastTileX = TileX; LastTileY = TileY; }
         public float VolumeFromDistance(Vector2 position, float fade, float max) { return Position.VolumeFromDistance(position, fade, max); }
         public static Player Get(NetConnection connection) { return Players.FirstOrDefault(t => (t != null) && (t.Connection == connection)); }
         public static Player Add(Player player)

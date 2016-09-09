@@ -42,6 +42,7 @@ namespace Orbis
         #region Game Variables
         public const int TileSize = 8, ChunkWidth = 160, ChunkHeight = 120, LightingUpdateBuffer = 16;
         public static Tile[,] Tiles;
+        public static Texture2D TilesTexture, LightPixel, PlayerTexture, TileSelectionTexture;
         public static Point Spawn;
         public static ushort Light = 285;
         public static BlendState Multiply = new BlendState { AlphaSourceBlend = Blend.DestinationAlpha, AlphaDestinationBlend = Blend.Zero, AlphaBlendFunction = BlendFunction.Add, ColorSourceBlend = Blend.DestinationColor, ColorDestinationBlend = Blend.Zero, ColorBlendFunction = BlendFunction.Add };
@@ -81,6 +82,13 @@ namespace Orbis
             IsMouseVisible = true;
             // If the user has already given their Username, send them straight to the Host/Connect screen.
             if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
+        }
+        public static void LoadGameTextures()
+        {
+            TilesTexture = Textures.Load("Tiles.png");
+            LightPixel = Textures.Load("Light.png");
+            PlayerTexture = Textures.Load("test_char.png");
+            TileSelectionTexture = Textures.Load("Selection.png");
         }
         protected override void Update(GameTime time)
         {
@@ -172,10 +180,14 @@ namespace Orbis
                     UpdateResCamStuff();
                     LineThickness = (1 / Camera.Zoom);
                     Tiles = Generation.Generate(8400, 2400, out Spawn);
+                    Self.Position = new Vector2((Spawn.X*TileSize), (Spawn.Y*TileSize));
+                    Self.UpdateTilePos(); Self.UpdateLastTilePos();
+                    Camera.Position = Self.Position;
+                    UpdateCamTilesPos();
                     Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
                     LightingThread = new Thread(() => { while (true) { UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                     LightingThread.Start();
-                    Self.Position = new Vector2((Spawn.X*TileSize), (Spawn.Y*TileSize));
+                    LoadGameTextures();
                     Frame = Frames.Game;
                 }
                 Network.Update();
@@ -187,7 +199,6 @@ namespace Orbis
                 CursorOpacity = MathHelper.Clamp((CursorOpacity + (CursorOpacitySpeed * CursorOpacitySpeedDir)), CursorOpacityMin, CursorOpacityMax);
                 if (CursorOpacity.Matches(CursorOpacityMin, CursorOpacityMax)) CursorOpacitySpeedDir *= -1;
                 foreach (var t in Players.Where(t => t != null)) t.Update(time);
-                Camera.Position = Self.Position;
                 if (Timers.Tick("posSync") && Network.IsServer)
                     foreach (var player in Players)
                         if (player?.Connection != null)
@@ -286,26 +297,21 @@ namespace Orbis
                 DrawLighting();
                 GraphicsDevice.Clear(Color.CornflowerBlue);
                 Screen.Setup(SamplerState.PointClamp, Camera.View(Camera.Samplers.Point));
-                int xMax = (int) Math.Ceiling((Camera.X + ScrWidthTiles) /TileSize), yMax = (int) Math.Ceiling((Camera.Y + ScrHeightTiles) /TileSize);
-                for (var x = (int) Math.Floor((Camera.X - ScrWidthTiles) /TileSize); x < xMax; x++)
-                    for (var y = (int) Math.Floor((Camera.Y - ScrHeightTiles) /TileSize); y < yMax; y++)
+                for (var x = CamTilesMinX; x < CamTilesMaxX; x++)
+                    for (var y = CamTilesMinY; y < CamTilesMaxY; y++)
                         if (InBounds(x, y) && (Tiles[x, y].Light > 0)/*Draw tile only if not in complete darkness*/)
                         {
                             var rect = new Rectangle(x*TileSize, y*TileSize, TileSize, TileSize);
-                            if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].BackID), Color.DarkGray);
-                            if (Tiles[x, y].ForeID != 0) Screen.Draw("Tiles.png", rect, Tile.Source(Tiles[x, y].ForeID));
+                            if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, rect, Tile.Source(Tiles[x, y].BackID), Color.DarkGray);
+                            if (Tiles[x, y].ForeID != 0) Screen.Draw(TilesTexture, rect, Tile.Source(Tiles[x, y].ForeID));
                             //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + 2), (rect.Y + 2)), Color.White, new Vector2(.1f));
-                            //Screen.Draw(Textures.Pixel(Color.Black, true), rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
+                            //Screen.Draw(LightPixel, rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
                         }
                 foreach (var player in Players.Where(player => player != null)) player.Draw();
-                Screen.Draw(Textures.Load("Selection.png"), new Rectangle((MouseTileX * TileSize), (MouseTileY * TileSize), TileSize, TileSize), (Color.White * CursorOpacity));
+                Screen.Draw(TileSelectionTexture, new Rectangle((MouseTileX * TileSize), (MouseTileY * TileSize), TileSize, TileSize), (Color.White * CursorOpacity));
                 Screen.Cease();
                 Screen.Setup(SpriteSortMode.Deferred, Multiply, Camera.View(Camera.Samplers.Point));
-                Screen.Draw(Lighting, new Rectangle(
-                    (int)Math.Floor((Camera.X - ((Screen.BackBufferWidth / 2f) / Camera.Zoom)) / TileSize) * TileSize, 
-                    (int)Math.Floor((Camera.Y - ((Screen.BackBufferHeight / 2f) / Camera.Zoom)) / TileSize) * TileSize,
-                    Lighting.Width * TileSize,
-                    Lighting.Height * TileSize));
+                Screen.Draw(Lighting, new Rectangle((CamTilesMinX * TileSize), (CamTilesMinY * TileSize), (Lighting.Width * TileSize), (Lighting.Height * TileSize)));
                 Screen.Cease();
                 Screen.Setup();
                 Screen.DrawString(("Zoom: " + Camera.Zoom), Font.Load("Consolas"), new Vector2(2), Color.White, Color.Black, new Vector2(.35f));
@@ -327,14 +333,22 @@ namespace Orbis
         public static ushort BelowLight(int x, int y) { y++; if (y >= Tiles.GetLength(1)) return 0; return Tiles[x, y].Empty ? Light : Tiles[x, y].Light; }
         public static ushort LeftLight(int x, int y) { x--; if (x < 0) return 0; return Tiles[x, y].Empty ? Light : Tiles[x, y].Light; }
         public static ushort RightLight(int x, int y) { x++; if (x >= Tiles.GetLength(0)) return 0; return Tiles[x, y].Empty ? Light : Tiles[x, y].Light; }
+        public static int CamTilesMinX, CamTilesMinY, CamTilesMaxX, CamTilesMaxY;
+        public static void UpdateCamTilesPos()
+        {
+            CamTilesMinX = (int)Math.Floor((Camera.X - ScrWidthTiles) / TileSize);
+            CamTilesMinY = (int)Math.Floor((Camera.Y - ScrHeightTiles) / TileSize);
+            CamTilesMaxX = (int)Math.Ceiling((Camera.X + ScrWidthTiles) / TileSize);
+            CamTilesMaxY = (int)Math.Ceiling((Camera.Y + ScrHeightTiles) / TileSize);
+        }
         public static float ScrWidthTiles, ScrHeightTiles;
         public static void UpdateResCamStuff() { ScrWidthTiles = ((Screen.BackBufferWidth / 2f) / Camera.Zoom); ScrHeightTiles = ((Screen.BackBufferHeight / 2f) / Camera.Zoom); }
         public static void UpdateLighting()
         {
             Profiler.Start("Update Lighting");
-            int xMax = ((int)Math.Ceiling((Camera.X + ScrWidthTiles) / TileSize) + LightingUpdateBuffer), yMax = ((int)Math.Ceiling((Camera.Y + ScrHeightTiles) / TileSize) + LightingUpdateBuffer);
-            for (var x = (int)Math.Floor((Camera.X - ScrWidthTiles) / TileSize) - LightingUpdateBuffer; x <= xMax; x++)
-                for (var y = (int)Math.Floor((Camera.Y - ScrHeightTiles) / TileSize) - LightingUpdateBuffer; y <= yMax; y++)
+            int xMax = (CamTilesMaxX + LightingUpdateBuffer), yMax = (CamTilesMaxY + LightingUpdateBuffer);
+            for (var x = (CamTilesMinX - LightingUpdateBuffer); x <= xMax; x++)
+                for (var y = (CamTilesMinY - LightingUpdateBuffer); y <= yMax; y++)
                     if (InBounds(x, y))
                     {
                         ushort aboveLight = AboveLight(x, y), belowLight = BelowLight(x, y), leftLight = LeftLight(x, y), rightLight = RightLight(x, y), max = Math.Max(aboveLight, Math.Max(belowLight, Math.Max(leftLight, rightLight)));
@@ -349,13 +363,12 @@ namespace Orbis
             Globe.GraphicsDevice.SetRenderTarget(Lighting);
             Globe.GraphicsDevice.Clear(Color.White);
             Screen.Setup();
-            int xMax = (int) Math.Ceiling((Camera.X + ScrWidthTiles) /TileSize), yMax = (int) Math.Ceiling((Camera.Y + ScrHeightTiles) /TileSize);
-            for (var x = (int) Math.Floor((Camera.X - ScrWidthTiles)/TileSize); x <= xMax; x++)
+            for (var x = CamTilesMinX; x <= CamTilesMaxX; x++)
             {
-                for (var y = (int) Math.Floor((Camera.Y - ScrHeightTiles) /TileSize); y <= yMax; y++)
+                for (var y = CamTilesMinY; y <= CamTilesMaxY; y++)
                 {
-                    if (InBounds(x, y)) Screen.Draw(Textures.Load("Light.png"), new Rectangle(j, k, 1, 1), new Color(255, 255, 255, (255 - Math.Min((ushort)255, Tiles[x, y].Light))));
-                    else Screen.Draw(Textures.Load("Light.png"), new Rectangle(j, k, 1, 1));
+                    if (InBounds(x, y)) Screen.Draw(LightPixel, new Rectangle(j, k, 1, 1), new Color(255, 255, 255, (255 - Math.Min((ushort)255, Tiles[x, y].Light))));
+                    else Screen.Draw(LightPixel, new Rectangle(j, k, 1, 1));
                     k++;
                 }
                 j++;
