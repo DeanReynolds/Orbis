@@ -306,7 +306,7 @@ namespace Orbis
                             var rect = new Rectangle(x*TileSize, y*TileSize, TileSize, TileSize);
                             if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, rect, Tile.Source(Tiles[x, y].BackID), Color.DarkGray);
                             if (Tiles[x, y].ForeID != 0) Screen.Draw(TilesTexture, rect, Tile.Source(Tiles[x, y].ForeID));
-                            //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + 2), (rect.Y + 2)), Color.White, new Vector2(.1f));
+                            //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + (TileSize / 2)), (rect.Y + (TileSize / 2))), Color.White, Textures.Origin.Center, new Vector2(.01f * Camera.Zoom));
                             //Screen.Draw(LightTile, rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
                         }
                 foreach (var player in Players.Where(player => player != null)) player.Draw();
@@ -354,7 +354,7 @@ namespace Orbis
                     if (InBounds(x, y))
                     {
                         ushort aboveLight = AboveLight(x, y), belowLight = BelowLight(x, y), leftLight = LeftLight(x, y), rightLight = RightLight(x, y), max = Math.Max(aboveLight, Math.Max(belowLight, Math.Max(leftLight, rightLight)));
-                        Tiles[x, y].Light = (ushort)Math.Max((Tiles[x, y].Empty ? Light : Tiles[x, y].LightGenerated), (max - (Tiles[x, y].BackOnly ? 6 : 25)));
+                        Tiles[x, y].Light = (ushort)Math.Max((Tiles[x, y].Empty ? Light : Tiles[x, y].LightGenerated), (max - (Tiles[x, y].BackOnly ? Tiles[x, y].BackLightDim : Tiles[x, y].ForeLightDim)));
                     }
             Profiler.Stop("Update Lighting");
         }

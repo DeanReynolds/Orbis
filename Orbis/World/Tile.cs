@@ -19,6 +19,8 @@ namespace Orbis
         public ushort LightGenerated => (ushort)((Fore == Tiles.Torch) ? 275 : 0);
         public float MovementSpeed => (3);
         public float MovementResistance => (!Solid ? 1 : 10);
+        public ushort ForeLightDim => (ushort)((Fore == Tiles.Leaves) ? 12 : 25);
+        public ushort BackLightDim => (ushort)((Back == Tiles.Leaves) ? 3 : 6);
 
         public const int TextureSize = 8, TilesetWidth = 16;
         public static Rectangle Source(int tileID) { return new Rectangle((((tileID - 1) % TilesetWidth) * TextureSize), (((tileID - 1) / TilesetWidth) * TextureSize), TextureSize, TextureSize); }
