@@ -42,7 +42,7 @@ namespace Orbis
         #region Game Variables
         public const int TileSize = 8, ChunkWidth = 160, ChunkHeight = 120, LightingUpdateBuffer = 16;
         public static Tile[,] Tiles;
-        public static Texture2D TilesTexture, LightPixel, PlayerTexture, TileSelectionTexture;
+        public static Texture2D TilesTexture, LightPixel, LightTile, PlayerTexture, TileSelectionTexture;
         public static Point Spawn;
         public static ushort Light = 285;
         public static BlendState Multiply = new BlendState { AlphaSourceBlend = Blend.DestinationAlpha, AlphaDestinationBlend = Blend.Zero, AlphaBlendFunction = BlendFunction.Add, ColorSourceBlend = Blend.DestinationColor, ColorDestinationBlend = Blend.Zero, ColorBlendFunction = BlendFunction.Add };
@@ -82,12 +82,13 @@ namespace Orbis
             IsMouseVisible = true;
             // If the user has already given their Username, send them straight to the Host/Connect screen.
             if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
+            PlayerTexture = Textures.Load("test_char.png");
         }
         public static void LoadGameTextures()
         {
             TilesTexture = Textures.Load("Tiles.png");
-            LightPixel = Textures.Load("Light.png");
-            PlayerTexture = Textures.Load("test_char.png");
+            LightPixel = Textures.Load("LightPixel.png");
+            LightTile = Textures.Load("LightTile.png");
             TileSelectionTexture = Textures.Load("Selection.png");
         }
         protected override void Update(GameTime time)
@@ -198,6 +199,7 @@ namespace Orbis
                 MouseTileY = (int)Math.Floor(Mouse.CameraPosition.Y / TileSize);
                 CursorOpacity = MathHelper.Clamp((CursorOpacity + (CursorOpacitySpeed * CursorOpacitySpeedDir)), CursorOpacityMin, CursorOpacityMax);
                 if (CursorOpacity.Matches(CursorOpacityMin, CursorOpacityMax)) CursorOpacitySpeedDir *= -1;
+                Self.SelfUpdate(time);
                 foreach (var t in Players.Where(t => t != null)) t.Update(time);
                 if (Timers.Tick("posSync") && Network.IsServer)
                     foreach (var player in Players)
@@ -209,8 +211,8 @@ namespace Orbis
                             packet.SendTo(player.Connection, NetDeliveryMethod.UnreliableSequenced, 1);
                         }
                 // I need the Zooming to test multiplayer tile syncing
-                if (Mouse.ScrolledUp()) { Camera.Zoom = MathHelper.Min(4, (float)Math.Round((Camera.Zoom + ZoomRate), 2)); Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1)); UpdateResCamStuff(); }
-                if (Mouse.ScrolledDown()) { Camera.Zoom = MathHelper.Max(.25f, (float)Math.Round((Camera.Zoom - ZoomRate), 2)); Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1)); UpdateResCamStuff(); }
+                if (Mouse.ScrolledUp()) { Camera.Zoom = MathHelper.Min(4, (float)Math.Round((Camera.Zoom + ZoomRate), 2)); Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1)); UpdateResCamStuff(); UpdateCamTilesPos(); }
+                if (Mouse.ScrolledDown()) { Camera.Zoom = MathHelper.Max(.25f, (float)Math.Round((Camera.Zoom - ZoomRate), 2)); Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1)); UpdateResCamStuff(); UpdateCamTilesPos(); }
                 Network.Update();
             }
             #endregion
@@ -305,7 +307,7 @@ namespace Orbis
                             if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, rect, Tile.Source(Tiles[x, y].BackID), Color.DarkGray);
                             if (Tiles[x, y].ForeID != 0) Screen.Draw(TilesTexture, rect, Tile.Source(Tiles[x, y].ForeID));
                             //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + 2), (rect.Y + 2)), Color.White, new Vector2(.1f));
-                            //Screen.Draw(LightPixel, rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
+                            //Screen.Draw(LightTile, rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
                         }
                 foreach (var player in Players.Where(player => player != null)) player.Draw();
                 Screen.Draw(TileSelectionTexture, new Rectangle((MouseTileX * TileSize), (MouseTileY * TileSize), TileSize, TileSize), (Color.White * CursorOpacity));

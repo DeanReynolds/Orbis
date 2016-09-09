@@ -17,6 +17,8 @@ namespace Orbis
         public bool Solid => Fore.Matches(Tiles.Grass, Tiles.Dirt, Tiles.Stone);
         public bool BackOnly => ((ForeID == 0) && (BackID > 0));
         public ushort LightGenerated => (ushort)((Fore == Tiles.Torch) ? 275 : 0);
+        public float MovementSpeed => (3);
+        public float MovementResistance => (!Solid ? 1 : 10);
 
         public const int TextureSize = 8, TilesetWidth = 16;
         public static Rectangle Source(int tileID) { return new Rectangle((((tileID - 1) % TilesetWidth) * TextureSize), (((tileID - 1) / TilesetWidth) * TextureSize), TextureSize, TextureSize); }

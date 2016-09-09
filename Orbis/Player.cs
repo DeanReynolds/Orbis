@@ -15,7 +15,10 @@ namespace Orbis
 
     public class Player
     {
-        private static Camera Camera { get { return Game.Camera; } set { Game.Camera = value; } }
+        private static Player Self => Game.Self;
+        private static Player[] Players => Game.Players;
+        private static Tile[,] Tiles => Game.Tiles;
+        private static Camera Camera => Game.Camera;
         private static float LineThickness { get { return Game.LineThickness; } set { Game.LineThickness = value; } }
 
         private const int TileSize = Game.TileSize;
@@ -41,11 +44,12 @@ namespace Orbis
         /// </summary>
         public byte Slot;
 
-        public const float Gravity = 15;
+        public const float Gravity = 15, MaxYVel = (Gravity / 2), MaxXVel = 20;
         public byte Jumps;
-        public float XSpeed = 125;
-        public Vector2 Velocity = Vector2.Zero;
-        public Vector2 Scale;
+        public float MovementSpeed { get; private set; }
+        public float MovementResistance { get; private set; }
+        public Vector2 Velocity = Vector2.Zero, Scale;
+        public static Texture2D PlayerTexture => Game.PlayerTexture;
 
         public int TileX, TileY, LastTileX, LastTileY;
         public sbyte Direction;
@@ -72,14 +76,8 @@ namespace Orbis
             this.Name = Name;
             Load();
         }
-
-        private static Player Self => Game.Self;
-        private static Player[] Players => Game.Players;
-
-        // We can't just say TileSize * 2 and TileSize * 3 for the dimensions because the player has to be able to get down holes and through
-        //  tunnels easily. Therefore he must be a couple of pixels shorter than 3 tiles high and a couple of pixels thinner than 2 tiles wide.
-        // 12x22 is the size of the test character, by the way. This may change.
-        public void Load() { Scale = new Vector2(12, 22); Hitbox = Polygon.CreateRectangle(Scale); }
+        
+        public void Load() { Scale = new Vector2(PlayerTexture.Width, PlayerTexture.Height); Hitbox = Polygon.CreateRectangle(Scale); }
         public bool Collides
         {
             get
@@ -99,20 +97,6 @@ namespace Orbis
 
         public void Update(GameTime time)
         {
-            if (this == Self)
-            {
-                Velocity.Y += (float)(Gravity * time.ElapsedGameTime.TotalSeconds);
-                if (Globe.IsActive)
-                {
-                    if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) { Velocity.Y = -5; Jumps++; Move(new Vector2(0, -10)); }
-                    if (Keyboard.Holding(Keyboard.Keys.A)) Move(new Vector2(-(float)(XSpeed * time.ElapsedGameTime.TotalSeconds), 0));
-                    if (Keyboard.Holding(Keyboard.Keys.D)) Move(new Vector2((float)(XSpeed * time.ElapsedGameTime.TotalSeconds), 0));
-                }
-                Move(Velocity); UpdateTilePos();
-                Camera.Position = Position;
-                if ((LastTileX != TileX) || (LastTileY != TileY)) { Game.UpdateCamTilesPos(); UpdateLastTilePos(); }
-                if (Timers.Tick("posSync") && Network.IsClient) new Packet((byte)Packets.Position, Position).Send(NetDeliveryMethod.UnreliableSequenced, 1);
-            }
             if (LastPosition != Position)
             {
                 if (Position.X > LastPosition.X) Direction = 1;
@@ -120,9 +104,26 @@ namespace Orbis
                 LastPosition = Position;
             }
         }
+        public void SelfUpdate(GameTime time)
+        {
+            if (Game.InBounds(TileX, (TileY + 2))) { if (Tiles[TileX, (TileY + 2)].Solid) MovementSpeed = Tiles[TileX, (TileY + 2)].MovementSpeed; MovementResistance = Tiles[TileX, (TileY + 2)].MovementResistance; }
+            if (Velocity.X > 0) Velocity.X = MathHelper.Clamp((Velocity.X - (float)(MovementResistance * time.ElapsedGameTime.TotalSeconds)), 0, MaxXVel);
+            else if (Velocity.X < 0) Velocity.X = MathHelper.Clamp((Velocity.X + (float)(MovementResistance * time.ElapsedGameTime.TotalSeconds)), -MaxXVel, 0);
+            Velocity.Y = MathHelper.Min(MaxYVel, (Velocity.Y + (float)(Gravity * time.ElapsedGameTime.TotalSeconds)));
+            if (Globe.IsActive)
+            {
+                if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) { Velocity.Y = -5; Jumps++; }
+                if (Keyboard.Holding(Keyboard.Keys.A)) Velocity.X = -(MovementSpeed / 2);
+                if (Keyboard.Holding(Keyboard.Keys.D)) Velocity.X = (MovementSpeed / 2);
+            }
+            Move(Velocity); UpdateTilePos();
+            Camera.Position = Position;
+            /*if ((LastTileX != TileX) || (LastTileY != TileY)) */{ Game.UpdateCamTilesPos(); UpdateLastTilePos(); }
+            if (Timers.Tick("posSync") && Network.IsClient) new Packet((byte)Packets.Position, Position).Send(NetDeliveryMethod.UnreliableSequenced, 1);
+        }
         public void Draw()
         {
-            Screen.Draw(Game.PlayerTexture, Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
+            Screen.Draw(PlayerTexture, Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
             Hitbox.Draw((Color.Red*.75f), LineThickness);
         }
 
