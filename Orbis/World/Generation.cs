@@ -28,12 +28,21 @@ namespace Orbis.World
                     else { tiles[x, y].Fore = tiles[x, y].Back = Tile.Tiles.Stone; }
                 }
                 treeSpace++; surfaceLength++;
-                if ((surfaceLength > 1) && Globe.Chance(30))
+                if (Globe.Chance(30))
                 {
-                    surface += Globe.Random(-1, 1);
-                    if (surface < minSurface) surface = minSurface;
-                    if (surface > maxSurface) surface = maxSurface;
-                    surfaceLength = 0;
+                    var dif = Globe.Random(-1, 1);
+                    if (surfaceLength == 1)
+                    {
+                        if (dif == 1) { if ((x > 0) && !tiles[(x - 1), surface].Fore.Matches(Tile.Tiles.Dirt, Tile.Tiles.Grass)) dif = Globe.Pick(-1, 0); }
+                        else if (dif == -1) { if ((x > 0) && tiles[(x - 1), surface].Fore.Matches(Tile.Tiles.Dirt, Tile.Tiles.Grass)) dif = Globe.Pick(0, 1); }
+                    }
+                    if (dif != 0)
+                    {
+                        surface += dif;
+                        if (surface < minSurface) surface = minSurface;
+                        if (surface > maxSurface) surface = maxSurface;
+                        surfaceLength = 0;
+                    }
                 }
             }
             return tiles;

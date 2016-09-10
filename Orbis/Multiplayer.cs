@@ -93,9 +93,7 @@ namespace Orbis
                 Players = new Player[message.ReadByte() + 1];
                 Self = Player.Set(message.ReadByte(), new Player(Settings.Get("Name")));
                 Timers.Add("posSync", 1 / 20d);
-                Camera = new Camera() { Zoom = Game.CameraZoom };
-                Game.UpdateResCamStuff();
-                LineThickness = (1 / Camera.Zoom);
+                Camera = new Camera() { Zoom = Game.CameraZoom }; Game.UpdateResCamStuff(); LineThickness = (1 / Camera.Zoom);
                 Frame = Frames.LoadGame;
                 new Packet((byte)Packets.PlayerData).Send();
                 new Packet((byte)Packets.TileData).Send();
@@ -123,8 +121,7 @@ namespace Orbis
                     WriteRectangleOfTiles(ref Game.Tiles, ref data, (Spawn.X - (ChunkWidth / 2)), (Spawn.Y - (ChunkHeight / 2)), ChunkWidth, ChunkHeight);
                     data.Add((ushort)Spawn.X, (ushort)Spawn.Y);
                     Player sender = Player.Get(message.SenderConnection);
-                    sender.Position = new Vector2((Spawn.X * TileSize), (Spawn.Y * TileSize));
-                    sender.TileX = sender.LastTileX = Spawn.X; sender.TileY = sender.LastTileY = Spawn.Y;
+                    sender.Spawn(Spawn); sender.LastTileX = Spawn.X; sender.LastTileY = Spawn.Y;
                     data.SendTo(message.SenderConnection);
                 }
                 else
@@ -132,11 +129,8 @@ namespace Orbis
                     Game.Tiles = new Tile[message.ReadUInt16(), message.ReadUInt16()];
                     ReadRectangleOfTiles(ref message, ref Game.Tiles);
                     Spawn = new Point(message.ReadUInt16(), message.ReadUInt16());
-                    Self.Position = new Vector2((Spawn.X * TileSize), (Spawn.Y * TileSize));
-                    Self.UpdateTilePos(); Self.UpdateLastTilePos();
-                    Camera.Position = Self.Position;
-                    Game.UpdateCamTilesPos();
-                    Game.InitializeLighting();
+                    Self.Spawn(Spawn); Camera.Position = Self.Position;
+                    Game.UpdateCamPos(); Game.UpdateCamBounds(); Game.InitializeLighting();
                     LightingThread = new Thread(() => { while (true) { Game.UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                     LightingThread.Start();
                     Game.LoadGameTextures();
@@ -157,6 +151,7 @@ namespace Orbis
                     if (sender != null)
                     {
                         sender.Position = message.ReadVector2();
+                        sender.Velocity = message.ReadVector2();
                         sender.UpdateTilePos();
                         //while (sender.TileX < sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2) - 1), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX--; data.SendTo(sender.Connection); }
                         //while (sender.TileX > sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX + ((ChunkWidth / 2))), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX++; data.SendTo(sender.Connection); }
@@ -171,13 +166,14 @@ namespace Orbis
                 }
                 else
                 {
-                    var count = (message.LengthBytes - 1) / 9;
+                    var count = (message.LengthBytes - 1) / 17;
                     for (var i = 0; i < count; i++)
                     {
                         var sender = Players[message.ReadByte()];
                         if (sender != null)
                         {
                             sender.Position = message.ReadVector2();
+                            sender.Velocity = message.ReadVector2();
                         }
                     }
                 }

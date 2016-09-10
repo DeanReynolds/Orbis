@@ -32,8 +32,8 @@ namespace Orbis
         public static ulong Version { get { return Globe.Version; } set { Globe.Version = value; } }
         public static float Speed { get { return Globe.Speed; } set { Globe.Speed = value; } }
 
-        public static Vector2 Scale => new Vector2(Screen.BackBufferWidth/1920f, Screen.BackBufferHeight/1080f);
-        
+        public static Vector2 Scale => new Vector2(Screen.BackBufferWidth / 1920f, Screen.BackBufferHeight / 1080f);
+
         #region Menu/Connecting Variables
         public enum MenuStates { UsernameEntry, HostConnect, IPEntry }
         public static MenuStates MenuState = MenuStates.UsernameEntry;
@@ -78,10 +78,10 @@ namespace Orbis
             Network.OnData += Multiplayer.OnData;
             #endregion
             Screen.Set(1920, 1080, true);
+            IsFixedTimeStep = false;
             Screen.Expand(true);
             IsMouseVisible = true;
-            // If the user has already given their Username, send them straight to the Host/Connect screen.
-            if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
+            if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect; // If the user has already given their Username, send them straight to the Host/Connect screen.
             PlayerTexture = Textures.Load("test_char.png");
         }
         public static void LoadGameTextures()
@@ -94,11 +94,8 @@ namespace Orbis
         protected override void Update(GameTime time)
         {
             Performance.UpdateFPS.Record(1 / time.ElapsedGameTime.TotalSeconds);
-            Mouse.Update();
-            Keyboard.Update(time);
-            XboxPad.Update(time);
-            Timers.Update(time);
-            Globe.IsActive = IsActive;
+            Timers.Update(time); Globe.IsActive = IsActive;
+            Mouse.Update(); Keyboard.Update(time); XboxPad.Update(time);
             if (XboxPad.Pressed(XboxPad.Buttons.Back) || Keyboard.Pressed(Keyboard.Keys.Escape) || Quit) Exit();
             if (Keyboard.Pressed(Keyboard.Keys.F3)) Profiler.Enabled = !Profiler.Enabled;
             Profiler.Start("Frame Update");
@@ -176,16 +173,10 @@ namespace Orbis
                 if (BlinkTimer <= 0) BlinkTimer += 1;
                 if (Network.IsNullOrServer)
                 {
-                    // Create camera.
-                    Camera = new Camera {Zoom = CameraZoom};
-                    UpdateResCamStuff();
-                    LineThickness = (1 / Camera.Zoom);
+                    Camera = new Camera { Zoom = CameraZoom }; UpdateResCamStuff(); LineThickness = (1 / Camera.Zoom);
                     Tiles = Generation.Generate(8400, 2400, out Spawn);
-                    Self.Position = new Vector2((Spawn.X*TileSize), (Spawn.Y*TileSize));
-                    Self.UpdateTilePos(); Self.UpdateLastTilePos();
-                    Camera.Position = Self.Position;
-                    UpdateCamTilesPos();
-                    InitializeLighting();
+                    Self.Spawn(Spawn); Camera.Position = Self.Position;
+                    UpdateCamPos(); UpdateCamBounds(); InitializeLighting();
                     LightingThread = new Thread(() => { while (true) { UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                     LightingThread.Start();
                     LoadGameTextures();
@@ -195,24 +186,24 @@ namespace Orbis
             }
             else if (Frame == Frames.Game)
             {
-                MouseTileX = (int)Math.Floor(Mouse.CameraPosition.X / TileSize);
-                MouseTileY = (int)Math.Floor(Mouse.CameraPosition.Y / TileSize);
-                CursorOpacity = MathHelper.Clamp((CursorOpacity + (CursorOpacitySpeed * CursorOpacitySpeedDir)), CursorOpacityMin, CursorOpacityMax);
+                MouseTileX = (int)Math.Floor(Mouse.CameraPosition.X / TileSize); MouseTileY = (int)Math.Floor(Mouse.CameraPosition.Y / TileSize);
+                CursorOpacity = MathHelper.Clamp((CursorOpacity + ((CursorOpacitySpeed * (float)time.ElapsedGameTime.TotalSeconds) * CursorOpacitySpeedDir)), CursorOpacityMin, CursorOpacityMax);
                 if (CursorOpacity.Matches(CursorOpacityMin, CursorOpacityMax)) CursorOpacitySpeedDir *= -1;
                 Self.SelfUpdate(time);
                 foreach (var t in Players.Where(t => t != null)) t.Update(time);
-                if (Timers.Tick("posSync") && Network.IsServer)
-                    foreach (var player in Players)
-                        if (player?.Connection != null)
-                        {
-                            var packet = new Packet((byte) Packets.Position);
-                            foreach (var other in Players.Where(other => !other.Matches(null, player)))
-                                packet.Add(other.Slot, other.Position);
-                            packet.SendTo(player.Connection, NetDeliveryMethod.UnreliableSequenced, 1);
-                        }
-                // I need the Zooming to test multiplayer tile syncing
-                if (Mouse.ScrolledUp()) { Camera.Zoom = MathHelper.Min(4, (float)Math.Round((Camera.Zoom + ZoomRate), 2)); InitializeLighting(); UpdateResCamStuff(); UpdateCamTilesPos(); }
-                if (Mouse.ScrolledDown()) { Camera.Zoom = MathHelper.Max(.25f, (float)Math.Round((Camera.Zoom - ZoomRate), 2)); InitializeLighting(); UpdateResCamStuff(); UpdateCamTilesPos(); }
+                if (Mouse.ScrolledUp()) { Camera.Zoom = MathHelper.Min(4, (float)Math.Round((Camera.Zoom + ZoomRate), 2)); InitializeLighting(); UpdateResCamStuff(); }
+                if (Mouse.ScrolledDown()) { Camera.Zoom = MathHelper.Max(.5f, (float)Math.Round((Camera.Zoom - ZoomRate), 2)); InitializeLighting(); UpdateResCamStuff(); }
+                UpdateCamPos(); UpdateCamBounds();
+                if (Network.IsServer)
+                    while (Timers.Tick("posSync"))
+                        foreach (var player in Players)
+                            if (player?.Connection != null)
+                            {
+                                var packet = new Packet((byte)Packets.Position);
+                                foreach (var other in Players.Where(other => !other.Matches(null, player)))
+                                    packet.Add(other.Slot, other.Position, other.Velocity);
+                                packet.SendTo(player.Connection, NetDeliveryMethod.UnreliableSequenced, 1);
+                            }
                 Network.Update();
             }
             #endregion
@@ -338,19 +329,24 @@ namespace Orbis
         public static ushort LeftLight(int x, int y) { x--; if (x < 0) return 0; return Tiles[x, y].Empty ? Light : Tiles[x, y].Light; }
         public static ushort RightLight(int x, int y) { x++; if (x >= Tiles.GetLength(0)) return 0; return Tiles[x, y].Empty ? Light : Tiles[x, y].Light; }
         public static int CamTilesMinX, CamTilesMinY, CamTilesMaxX, CamTilesMaxY, LightTilesMinX, LightTilesMinY, LightTilesMaxX, LightTilesMaxY;
-        public static void UpdateCamTilesPos()
+        public static float ScrWidth, ScrHeight;
+        public static void UpdateResCamStuff() { ScrWidth = ((Screen.BackBufferWidth / 2f) / Camera.Zoom); ScrHeight = ((Screen.BackBufferHeight / 2f) / Camera.Zoom); }
+        public static void UpdateCamPos()
         {
-            CamTilesMinX = (int)Math.Max(0, Math.Floor((Camera.X - ScrWidthTiles) / TileSize - 1));
-            CamTilesMinY = (int)Math.Max(0, Math.Floor((Camera.Y - ScrHeightTiles) / TileSize - 1));
-            CamTilesMaxX = (int)Math.Min((Tiles.GetLength(0) - 1), Math.Ceiling((Camera.X + ScrWidthTiles) / TileSize));
-            CamTilesMaxY = (int)Math.Min((Tiles.GetLength(1) - 1), Math.Ceiling((Camera.Y + ScrHeightTiles) / TileSize));
+            Camera.Position = new Vector2(MathHelper.Clamp(Self.Position.X, (ScrWidth + TileSize), (((Tiles.GetLength(0) * TileSize) - ScrWidth) - TileSize)),
+                MathHelper.Clamp(Self.Position.Y, (ScrHeight + TileSize), (((Tiles.GetLength(1) * TileSize) - ScrHeight) - TileSize)));
+        }
+        public static void UpdateCamBounds()
+        {
+            CamTilesMinX = (int)Math.Max(0, Math.Floor((Camera.X - ScrWidth) / TileSize - 1));
+            CamTilesMinY = (int)Math.Max(0, Math.Floor((Camera.Y - ScrHeight) / TileSize - 1));
+            CamTilesMaxX = (int)Math.Min((Tiles.GetLength(0) - 1), Math.Ceiling((Camera.X + ScrWidth) / TileSize));
+            CamTilesMaxY = (int)Math.Min((Tiles.GetLength(1) - 1), Math.Ceiling((Camera.Y + ScrHeight) / TileSize));
             LightTilesMinX = Math.Max(0, (CamTilesMinX - LightingUpdateBuffer));
             LightTilesMinY = Math.Max(0, (CamTilesMinY - LightingUpdateBuffer));
             LightTilesMaxX = Math.Min((Tiles.GetLength(0) - 1), (CamTilesMaxX + LightingUpdateBuffer));
             LightTilesMaxY = Math.Min((Tiles.GetLength(1) - 1), (CamTilesMaxY + LightingUpdateBuffer));
         }
-        public static float ScrWidthTiles, ScrHeightTiles;
-        public static void UpdateResCamStuff() { ScrWidthTiles = ((Screen.BackBufferWidth / 2f) / Camera.Zoom); ScrHeightTiles = ((Screen.BackBufferHeight / 2f) / Camera.Zoom); }
         public static void InitializeLighting() { Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 2), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 2)); }
         public static void UpdateLighting()
         {

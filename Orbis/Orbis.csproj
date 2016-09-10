@@ -50,9 +50,6 @@
     <Compile Include="World\Generation.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="SharpXNA">
-      <HintPath>C:\Users\Dean\Documents\GitHub\SharpXNA\SharpXNA\bin\Debug\SharpXNA.dll</HintPath>
-    </Reference>
     <Reference Include="Lidgren.Network">
       <HintPath>Lidgren.Network.dll</HintPath>
     </Reference>
@@ -64,6 +61,10 @@
     </Reference>
     <Reference Include="MonoGame.Framework">
       <HintPath>$(MSBuildProgramFiles32)\MonoGame\v3.0\Assemblies\Windows\MonoGame.Framework.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpXNA, Version=1.4.32.67, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>lib\SharpXNA.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Drawing" />

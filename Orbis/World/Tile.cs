@@ -16,9 +16,11 @@ namespace Orbis
         public bool DrawBack => Fore.Matches(Tiles.Air, Tiles.Leaves);
         public bool Solid => Fore.Matches(Tiles.Black, Tiles.Grass, Tiles.Dirt, Tiles.Stone);
         public bool BackOnly => ((ForeID == 0) && (BackID > 0));
+        public bool HasFore => (ForeID > 0);
+        public bool NoFore => (ForeID == 0);
         public ushort LightGenerated => (ushort)((Fore == Tiles.Torch) ? 275 : 0);
-        public float MovementSpeed => (3);
-        public float MovementResistance => (!Solid ? 1 : 10);
+        public float MovementSpeed => (100);
+        public float MovementResistance => (!Solid ? 120 : 960);
         public ushort ForeLightDim => (ushort)((Fore == Tiles.Black) ? ushort.MaxValue : (Fore == Tiles.Leaves) ? 12 : 25);
         public ushort BackLightDim => (ushort)((Back == Tiles.Leaves) ? 3 : 6);
 
