@@ -184,34 +184,34 @@ namespace Orbis
         {
             data.Add((ushort)x, (ushort)y, (ushort)width, (ushort)height);
             int endX = (x + width), endY = (y + height);
-            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) data.Add(tiles[j, k].ForeID, tiles[j, k].BackID);
+            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) data.Add(tiles[j, k].ForeID, tiles[j, k].BackID, tiles[j, k].Style);
         }
         public static void ReadRectangleOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), width = data.ReadUInt16(), height = data.ReadUInt16(), endX = (x + width), endY = (y + height);
-            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) { tiles[j, k].ForeID = data.ReadByte(); tiles[j, k].BackID = data.ReadByte(); }
+            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) { tiles[j, k].ForeID = data.ReadByte(); tiles[j, k].BackID = data.ReadByte(); tiles[j, k].Style = data.ReadByte(); }
         }
         public static void WriteRowOfTiles(ref Tile[,] tiles, ref Packet data, int x, int y, int width)
         {
             data.Add((ushort)x, (ushort)y, (ushort)width);
             var endX = (x + width);
-            for (var j = x; j < endX; j++) data.Add(tiles[j, y].ForeID, tiles[j, y].BackID);
+            for (var j = x; j < endX; j++) data.Add(tiles[j, y].ForeID, tiles[j, y].BackID, tiles[j, y].Style);
         }
         public static void ReadRowOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), width = data.ReadUInt16(), endX = (x + width);
-            for (var j = x; j < endX; j++) { tiles[j, y].ForeID = data.ReadByte(); tiles[j, y].BackID = data.ReadByte(); }
+            for (var j = x; j < endX; j++) { tiles[j, y].ForeID = data.ReadByte(); tiles[j, y].BackID = data.ReadByte(); tiles[j, y].Style = data.ReadByte(); }
         }
         public static void WriteColumnOfTiles(ref Tile[,] tiles, ref Packet data, int x, int y, int height)
         {
             data.Add((ushort)x, (ushort)y, (ushort)height);
             var endY = (y + height);
-            for (var k = y; k < endY; k++) data.Add(tiles[x, k].ForeID, tiles[x, k].BackID);
+            for (var k = y; k < endY; k++) data.Add(tiles[x, k].ForeID, tiles[x, k].BackID, tiles[x, k].Style);
         }
         public static void ReadColumnOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), height = data.ReadUInt16(), endY = (y + height);
-            for (var k = y; k < endY; k++) { tiles[x, k].ForeID = data.ReadByte(); tiles[x, k].BackID = data.ReadByte(); }
+            for (var k = y; k < endY; k++) { tiles[x, k].ForeID = data.ReadByte(); tiles[x, k].BackID = data.ReadByte(); tiles[x, k].Style = data.ReadByte(); }
         }
     }
 }

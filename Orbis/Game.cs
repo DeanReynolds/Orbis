@@ -49,7 +49,7 @@ namespace Orbis
         public static RenderTarget2D Lighting;
         public static Thread LightingThread;
         public static Camera Camera;
-        public const float CameraZoom = 2f, ZoomRate = .1f, CursorOpacitySpeed = .02f, CursorOpacityMin = .25f, CursorOpacityMax = .75f;
+        public const float CameraZoom = 2f, ZoomRate = .1f, CursorOpacitySpeed = 1.2f, CursorOpacityMin = .25f, CursorOpacityMax = .75f;
         public static sbyte CursorOpacitySpeedDir = (sbyte)Globe.Pick(-1, 1);
         public static float LineThickness = 1, CursorOpacity = Globe.Random(CursorOpacityMin, CursorOpacityMax);
         public static int MouseTileX, MouseTileY;
@@ -294,9 +294,13 @@ namespace Orbis
                     for (var y = CamTilesMinY; y <= CamTilesMaxY; y++)
                         if ((Tiles[x, y].Light > 0) || (Tiles[x, y].Fore == Tile.Tiles.Black))
                         {
-                            var rect = new Rectangle(x*TileSize, y*TileSize, TileSize, TileSize);
-                            if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, rect, Tile.Source(Tiles[x, y].BackID), Color.DarkGray);
-                            if (Tiles[x, y].ForeID != 0) Screen.Draw(TilesTexture, rect, Tile.Source(Tiles[x, y].ForeID));
+                            var pos = new Vector2((x * TileSize), (y * TileSize));
+                            if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, pos, Tile.Source(Tiles[x, y].BackID, 0), Color.DarkGray, SpriteEffects.None, .75f);
+                            if (Tiles[x, y].ForeID != 0)
+                            {
+                                Screen.Draw(TilesTexture, pos, Tile.Source(Tiles[x, y].ForeID, Tiles[x, y].Style), SpriteEffects.None, .25f);
+                                Screen.Draw(TilesTexture, pos, Tile.Border(Generation.GenerateStyle(ref Tiles, x, y)), SpriteEffects.None, .2f);
+                            }
                             //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + (TileSize / 2)), (rect.Y + (TileSize / 2))), Color.White, Textures.Origin.Center, new Vector2(.01f * Camera.Zoom));
                             //Screen.Draw(LightTile, rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
                         }
