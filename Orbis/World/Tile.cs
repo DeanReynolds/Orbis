@@ -1,7 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using SharpXNA;
 
-namespace Orbis
+namespace Orbis.World
 {
     public struct Tile
     {
@@ -9,6 +9,8 @@ namespace Orbis
         public Tiles Back { get { return (Tiles)BackID; } set { BackID = (byte)value; } }
         public enum Tiles { Air, Black, Dirt, Stone, Log, Leaves, Torch }
         public byte ForeID, BackID;
+
+        public const int Size = 8;
 
         public byte Style;
         public ushort Light;
@@ -25,8 +27,8 @@ namespace Orbis
         public ushort ForeLightDim => (ushort)((Fore == Tiles.Black) ? ushort.MaxValue : (Fore == Tiles.Leaves) ? 12 : 25);
         public ushort BackLightDim => (ushort)((Back == Tiles.Leaves) ? 3 : 6);
         public bool HasBorder => !Fore.Matches(Tiles.Log);
-        public bool BorderJoins(Tile tile) { return !(tile.ForeID == ForeID); }
-        public bool EitherForeIs(Tile tile, params Tiles[] types) { return (Fore.Matches(types) && tile.Fore.Matches(types)); }
+        public bool BorderJoins(Tile tile) { return tile.ForeID != ForeID; }
+        public bool EitherForeIs(Tile tile, params Tiles[] types) { return Fore.Matches(types) && tile.Fore.Matches(types); }
 
         public const int TextureSize = 8, TilesetHeight = 32;
         public static Rectangle Source(int tileID, byte style) { return new Rectangle((((4 + (tileID / TilesetHeight) * 4) + (style % 4)) * TextureSize), (((tileID - 1) % TilesetHeight) * TextureSize), TextureSize, TextureSize); }
