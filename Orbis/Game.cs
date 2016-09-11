@@ -20,10 +20,22 @@ namespace Orbis
 
     public class Game : Microsoft.Xna.Framework.Game
     {
+        /// <summary>
+        /// This stores all possible states of the game.
+        /// </summary>
         public enum Frames { Menu, Connecting, LoadGame, Game }
+        /// <summary>
+        /// The current state of the game.
+        /// </summary>
         public static Frames Frame = Frames.Menu;
 
+        /// <summary>
+        /// The local player.
+        /// </summary>
         public static Player Self;
+        /// <summary>
+        /// An array of the other players on the server.
+        /// </summary>
         public static Player[] Players;
         public static bool Quit = false;
 
