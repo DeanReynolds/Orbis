@@ -12,8 +12,9 @@ namespace Orbis
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        private static void Main()
+        private static void Main(string[] args)
         {
+            Settings.HandleArgs(args);
             using (var game = new Game())
                 game.Run();
         }

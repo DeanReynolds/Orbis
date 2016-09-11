@@ -11,13 +11,28 @@ namespace Orbis
                that's the ini parser/reader I wrote and use in my engine
         */
 
-        private static INI ini;
+        private static readonly INI ini;
         
         static Settings() { ini = INI.ReadFile("settings.ini"); }
+
+        public static bool IsDebugMode;
 
         public static string Get(string key) { return ini.Get(key); }
         public static string Get(string section, string key) { return ini.Get(section, key); }
         public static void Set(string key, string value) { ini.Set(key, value, true); }
         public static void Set(string section, string key, string value) { ini.Set(section, key, value, true); }
+
+        public static void HandleArgs(string[] args)
+        {
+            foreach (var arg in args)
+            {
+                switch (arg)
+                {
+                    case "-DebugMode":
+                        IsDebugMode = true;
+                        break;
+                }
+            }
+        }
     }
 }

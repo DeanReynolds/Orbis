@@ -7,11 +7,18 @@ using SharpXNA.Input;
 using static SharpXNA.Textures;
 using System;
 using Microsoft.Xna.Framework.Graphics;
+using Orbis.World;
 
 namespace Orbis
 {
     using Packet = Network.Packet;
     using Packets = Multiplayer.Packets;
+
+    // TODO: Possibly make an abstract class Entity to base players, mobs, projectiles, and particles from?
+    // It would hold common things like position info, hitbox info, and health.
+    // Having health on projectiles and particles is useful because it would mean that enemy projectiles
+    //  can be destroyed before they hit, and particles' health will constantly decrease as long as it
+    //  is 'alive', creating a destruction timer (eg. smoke from a furnace).
 
     public class Player
     {
@@ -21,8 +28,6 @@ namespace Orbis
         private static Camera Camera => Game.Camera;
         private static float LineThickness { get { return Game.LineThickness; } set { Game.LineThickness = value; } }
         
-        private const int TileSize = Game.TileSize;
-
         /// <summary>
         /// The NetConnection this player is connecting from.
         /// </summary>
@@ -35,10 +40,12 @@ namespace Orbis
         /// The friendly name of the player.
         /// </summary>
         public string Name;
+        
         /// <summary>
         /// The location of the player in the world.
         /// </summary>
-        public Vector2 Position, LastPosition;
+        private Vector2 Position;
+        public Vector2 LastPosition;
         /// <summary>
         /// The player slot that this player occupies in the current server.
         /// </summary>
@@ -83,12 +90,12 @@ namespace Orbis
             get
             {
                 UpdateHitbox();
-                for (var x = (int)Math.Floor((Position.X / TileSize) - 1); x <= (int)Math.Ceiling((Position.X / TileSize) + 1); x++)
-                    for (var y = (int)Math.Floor((Position.Y / TileSize) - 1); y <= (int)Math.Ceiling((Position.Y / TileSize) + 1); y++)
-                        if (Game.InBounds(x, y) && Game.Tiles[x, y].Solid)
+                for (var x = (int)Math.Floor((Position.X / Tile.Size) - 1); x <= (int)Math.Ceiling((Position.X / Tile.Size) + 1); x++)
+                    for (var y = (int)Math.Floor((Position.Y / Tile.Size) - 1); y <= (int)Math.Ceiling((Position.Y / Tile.Size) + 1); y++)
+                        if (Game.InBounds(x, y) && Tiles[x, y].Solid)
                         {
-                            var hitbox = Polygon.CreateSquare(TileSize);
-                            hitbox.Position = new Vector2(((x * TileSize) + (TileSize / 2f)), ((y * TileSize) + (TileSize / 2f)));
+                            var hitbox = Polygon.CreateSquare(Tile.Size);
+                            hitbox.Position = new Vector2(((x * Tile.Size) + (Tile.Size / 2f)), ((y * Tile.Size) + (Tile.Size / 2f)));
                             if (Hitbox.Intersects(hitbox)) return true;
                         }
                 return false;
@@ -97,6 +104,7 @@ namespace Orbis
 
         public void Update(GameTime time)
         {
+            Velocity = new Vector2((float)Math.Round(Velocity.X / Tile.Size) * Tile.Size, (float)Math.Round(Velocity.Y / Tile.Size) * Tile.Size);
             Move(Velocity * (float)time.ElapsedGameTime.TotalSeconds); UpdateTilePos();
             MovementResistance = Tiles[TileX, (TileY + 2)].MovementResistance;
             if (LastPosition != Position)
@@ -112,19 +120,25 @@ namespace Orbis
         }
         public void SelfUpdate(GameTime time)
         {
-            if (Tiles[TileX, (TileY + 2)].Solid) MovementSpeed = Tiles[TileX, (TileY + 2)].MovementSpeed;
+            if (Tiles[TileX, TileY + 2].Solid) MovementSpeed = Tiles[TileX, TileY + 2].MovementSpeed;
             if (Globe.IsActive)
             {
                 if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) { Velocity.Y = -300; Jumps++; }
                 if (Keyboard.Holding(Keyboard.Keys.A)) Velocity.X = -MovementSpeed;
                 if (Keyboard.Holding(Keyboard.Keys.D)) Velocity.X = MovementSpeed;
+                // Just some test controls. These lock to pixels. How do we get the velocity to lock to pixels though?
+                if (Settings.IsDebugMode)
+                {
+                    if (Keyboard.Holding(Keyboard.Keys.Left)) Position.X -= Camera.Zoom;
+                    if (Keyboard.Holding(Keyboard.Keys.Right)) Position.X += Camera.Zoom;
+                }
             }
             if (Network.IsClient) while (Timers.Tick("posSync")) new Packet((byte)Packets.Position, Position, Velocity).Send(NetDeliveryMethod.UnreliableSequenced, 1);
         }
         public void Draw()
         {
             Screen.Draw(PlayerTexture, Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
-            Hitbox.Draw((Color.Red*.75f), LineThickness);
+            if (Settings.IsDebugMode) Hitbox.Draw(Color.Red*.5f, LineThickness);
         }
 
         public void Move(Vector2 offset)
@@ -155,9 +169,20 @@ namespace Orbis
             }
         }
 
-        public void Spawn(Point spawn) { Position = new Vector2(((spawn.X * TileSize) + (TileSize / 2f)), ((spawn.Y * TileSize) + (TileSize / 2f))); }
+        public void SetPos(Vector2 pos)
+        {
+            pos.X = (float)Math.Round(pos.X / Camera.Zoom) * Camera.Zoom;
+            pos.Y = (float)Math.Round(pos.Y / Camera.Zoom) * Camera.Zoom;
+            Position = pos;
+        }
+        public Vector2 GetPos()
+        {
+            return Position;
+        }
+
+        public void Spawn(Point spawn) { Position = new Vector2(((spawn.X * Tile.Size) + (Tile.Size / 2f)), ((spawn.Y * Tile.Size) + (Tile.Size / 2f))); }
         public void UpdateHitbox() { Hitbox.Position = Position; }
-        public void UpdateTilePos() { TileX = (int)(Position.X / TileSize); TileY = (int)(Position.Y / TileSize); }
+        public void UpdateTilePos() { TileX = (int)(Position.X / Tile.Size); TileY = (int)(Position.Y / Tile.Size); }
         public void UpdateLastTilePos() { LastTileX = TileX; LastTileY = TileY; }
         public float VolumeFromDistance(Vector2 position, float fade, float max) { return Position.VolumeFromDistance(position, fade, max); }
         public static Player Get(NetConnection connection) { return Players.FirstOrDefault(t => (t != null) && (t.Connection == connection)); }

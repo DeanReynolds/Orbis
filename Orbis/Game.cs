@@ -20,10 +20,22 @@ namespace Orbis
 
     public class Game : Microsoft.Xna.Framework.Game
     {
+        /// <summary>
+        /// This stores all possible states of the game.
+        /// </summary>
         public enum Frames { Menu, Connecting, LoadGame, Game }
+        /// <summary>
+        /// The current state of the game.
+        /// </summary>
         public static Frames Frame = Frames.Menu;
 
+        /// <summary>
+        /// The local player.
+        /// </summary>
         public static Player Self;
+        /// <summary>
+        /// An array of the other players on the server.
+        /// </summary>
         public static Player[] Players;
         public static bool Quit = false;
 
@@ -40,7 +52,7 @@ namespace Orbis
         public static double BlinkTimer;
         #endregion
         #region Game Variables
-        public const int TileSize = 8, ChunkWidth = 160, ChunkHeight = 120, LightingUpdateBuffer = 16;
+        public const int ChunkWidth = 160, ChunkHeight = 120, LightingUpdateBuffer = 16;
         public static Tile[,] Tiles;
         public static Texture2D TilesTexture, LightPixel, LightTile, PlayerTexture, TileSelectionTexture;
         public static Point Spawn;
@@ -81,7 +93,8 @@ namespace Orbis
             IsFixedTimeStep = false;
             Screen.Expand(true);
             IsMouseVisible = true;
-            if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect; // If the user has already given their Username, send them straight to the Host/Connect screen.
+            // If the user has already given their Username, send them straight to the Host/Connect screen.
+            if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
             PlayerTexture = Textures.Load("test_char.png");
         }
         public static void LoadGameTextures()
@@ -99,114 +112,122 @@ namespace Orbis
             if (XboxPad.Pressed(XboxPad.Buttons.Back) || Keyboard.Pressed(Keyboard.Keys.Escape) || Quit) Exit();
             if (Keyboard.Pressed(Keyboard.Keys.F3)) Profiler.Enabled = !Profiler.Enabled;
             Profiler.Start("Frame Update");
-            #region Menu/Connecting
-            if (Frame == Frames.Menu)
+            switch (Frame)
             {
-                switch (MenuState)
-                {
-                    case MenuStates.UsernameEntry:
-                        if (IsActive)
-                        {
-                            BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
-                            if (BlinkTimer <= 0) BlinkTimer += .6;
-                            var name = Settings.Get("Name").AcceptInput(String.InputFlags.NoLeadingSpaces | String.InputFlags.NoRepeatingSpaces, 20);
-                            Settings.Set("Name", name);
-                            if (Keyboard.Pressed(Keyboard.Keys.Enter) && !name.IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
-                        }
-                        break;
-                    case MenuStates.HostConnect:
-                        if (Mouse.Press(Mouse.Buttons.Left))
-                        {
-                            Vector2 scale = Scale * .75f, size = Font.Load("calibri 50").MeasureString("Host") * scale;
-                            var button = new Rectangle((int)(Screen.BackBufferWidth / 2f - size.X / 2f),
-                                (int)(Screen.BackBufferHeight / 2f - size.Y), (int)size.X, (int)size.Y);
-                            if (new Rectangle(Mouse.X, Mouse.Y, 1, 1).Intersects(button))
+                case Frames.Menu:
+                    switch (MenuState)
+                    {
+                        case MenuStates.UsernameEntry:
+                            if (IsActive)
                             {
-                                Multiplayer.CreateLobby(Settings.Get("Name"));
-                                Frame = Frames.LoadGame;
+                                BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
+                                if (BlinkTimer <= 0) BlinkTimer += .6;
+                                var name = Settings.Get("Name").AcceptInput(String.InputFlags.NoLeadingSpaces | String.InputFlags.NoRepeatingSpaces, 20);
+                                Settings.Set("Name", name);
+                                if (Keyboard.Pressed(Keyboard.Keys.Enter) && !name.IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
                             }
-                            scale = Scale * .75f;
-                            size = Font.Load("calibri 50").MeasureString("Connect") * scale;
-                            button = new Rectangle((int)(Screen.BackBufferWidth / 2f - size.X / 2f),
-                                (int)(Screen.BackBufferHeight / 2f + size.Y * .25f), (int)size.X, (int)size.Y);
-                            if (new Rectangle(Mouse.X, Mouse.Y, 1, 1).Intersects(button)) MenuState = MenuStates.IPEntry;
-                        }
-                        break;
-                    case MenuStates.IPEntry:
-                        if (IsActive)
-                        {
-                            BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
-                            if (BlinkTimer <= 0) BlinkTimer += .6;
-                            var ip = Settings.Get("IP").AcceptInput(
+                            break;
+                        case MenuStates.HostConnect:
+                            if (Mouse.Press(Mouse.Buttons.Left))
+                            {
+                                Vector2 scale = Scale * .75f, size = Font.Load("calibri 50").MeasureString("Host") * scale;
+                                var button = new Rectangle((int)(Screen.BackBufferWidth / 2f - size.X / 2f),
+                                    (int)(Screen.BackBufferHeight / 2f - size.Y), (int)size.X, (int)size.Y);
+                                if (new Rectangle(Mouse.X, Mouse.Y, 1, 1).Intersects(button))
+                                {
+                                    Multiplayer.CreateLobby(Settings.Get("Name"));
+                                    Frame = Frames.LoadGame;
+                                }
+                                scale = Scale * .75f;
+                                size = Font.Load("calibri 50").MeasureString("Connect") * scale;
+                                button = new Rectangle((int)(Screen.BackBufferWidth / 2f - size.X / 2f),
+                                    (int)(Screen.BackBufferHeight / 2f + size.Y * .25f), (int)size.X, (int)size.Y);
+                                if (new Rectangle(Mouse.X, Mouse.Y, 1, 1).Intersects(button)) MenuState = MenuStates.IPEntry;
+                            }
+                            break;
+                        case MenuStates.IPEntry:
+                            if (IsActive)
+                            {
+                                BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
+                                if (BlinkTimer <= 0) BlinkTimer += .6;
+                                var ip = Settings.Get("IP").AcceptInput(
                                     String.InputFlags.NoLeadingPeriods | String.InputFlags.NoLetters |
                                     String.InputFlags.NoSpecalCharacters | String.InputFlags.NoSpaces |
                                     String.InputFlags.AllowPeriods |
                                     String.InputFlags.NoRepeatingPeriods | String.InputFlags.AllowColons |
                                     String.InputFlags.NoRepeatingColons | String.InputFlags.NoLeadingPeriods, 21);
-                            Settings.Set("IP", ip);
-                            if (Keyboard.Pressed(Keyboard.Keys.Enter) && !ip.IsNullOrEmpty())
-                            {
-                                Network.Connect(Settings.Get("IP").Split(':')[0],
-                                    Settings.Get("IP").Contains(":") ? Convert.ToInt32(Settings.Get("IP").Split(':')[1]) : 6121,
-                                    new Packet(null, Settings.Get("Name")));
-                                Frame = Frames.Connecting;
+                                Settings.Set("IP", ip);
+                                if (Keyboard.Pressed(Keyboard.Keys.Enter) && !ip.IsNullOrEmpty())
+                                {
+                                    Network.Connect(Settings.Get("IP").Split(':')[0],
+                                        Settings.Get("IP").Contains(":") ? Convert.ToInt32(Settings.Get("IP").Split(':')[1]) : 6121,
+                                        new Packet(null, Settings.Get("Name")));
+                                    Frame = Frames.Connecting;
+                                }
+                                else if (Keyboard.Pressed(Keyboard.Keys.Tab)) MenuState = MenuStates.HostConnect;
                             }
-                            else if (Keyboard.Pressed(Keyboard.Keys.Tab)) MenuState = MenuStates.HostConnect;
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+                    Network.Update();
+                    break;
+                case Frames.Connecting:
+                    BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
+                    if (BlinkTimer <= 0) BlinkTimer += 1;
+                    Network.Update();
+                    break;
+                case Frames.LoadGame:
+                    BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
+                    if (BlinkTimer <= 0) BlinkTimer += 1;
+                    if (Network.IsNullOrServer)
+                    {
+                        Camera = new Camera { Zoom = CameraZoom }; UpdateResCamStuff(); LineThickness = (1 / Camera.Zoom);
+                        Tiles = Generation.Generate(8400, 2400, out Spawn);
+                        Self.Spawn(Spawn); Camera.Position = Self.GetPos();
+                        UpdateCamPos(); UpdateCamBounds(); InitializeLighting();
+                        LightingThread = new Thread(() => { while (true) { UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
+                        LightingThread.Start();
+                        LoadGameTextures();
+                        Frame = Frames.Game;
+                    }
+                    Network.Update();
+                    break;
+                case Frames.Game:
+                    MouseTileX = (int)Math.Floor(Mouse.CameraPosition.X / Tile.Size); MouseTileY = (int)Math.Floor(Mouse.CameraPosition.Y / Tile.Size);
+                    CursorOpacity = MathHelper.Clamp((CursorOpacity + ((CursorOpacitySpeed * (float)time.ElapsedGameTime.TotalSeconds) * CursorOpacitySpeedDir)), CursorOpacityMin, CursorOpacityMax);
+                    if (CursorOpacity.Matches(CursorOpacityMin, CursorOpacityMax)) CursorOpacitySpeedDir *= -1;
+                    Self.SelfUpdate(time);
+                    foreach (var t in Players.Where(t => t != null)) t.Update(time);
+                    if (Settings.IsDebugMode)
+                    {
+                        if (Mouse.ScrolledUp())
+                        {
+                            Camera.Zoom = MathHelper.Min(4, (float) Math.Round((Camera.Zoom + ZoomRate), 2));
+                            InitializeLighting();
+                            UpdateResCamStuff();
                         }
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
-                Network.Update();
+                        if (Mouse.ScrolledDown())
+                        {
+                            Camera.Zoom = MathHelper.Max(.5f, (float) Math.Round((Camera.Zoom - ZoomRate), 2));
+                            InitializeLighting();
+                            UpdateResCamStuff();
+                        }
+                    }
+                    UpdateCamPos(); UpdateCamBounds();
+                    if (Network.IsServer)
+                        while (Timers.Tick("posSync"))
+                            foreach (var player in Players)
+                                if (player?.Connection != null)
+                                {
+                                    var packet = new Packet((byte)Packets.Position);
+                                    foreach (var other in Players.Where(other => !other.Matches(null, player)))
+                                        packet.Add(other.Slot, other.GetPos(), other.Velocity);
+                                    packet.SendTo(player.Connection, NetDeliveryMethod.UnreliableSequenced, 1);
+                                }
+                    Network.Update();
+                    break;
             }
-            else if (Frame == Frames.Connecting)
-            {
-                BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
-                if (BlinkTimer <= 0) BlinkTimer += 1;
-                Network.Update();
-            }
-            #endregion
-            #region LoadGame/Game
-            else if (Frame == Frames.LoadGame)
-            {
-                BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
-                if (BlinkTimer <= 0) BlinkTimer += 1;
-                if (Network.IsNullOrServer)
-                {
-                    Camera = new Camera { Zoom = CameraZoom }; UpdateResCamStuff(); LineThickness = (1 / Camera.Zoom);
-                    Tiles = Generation.Generate(8400, 2400, out Spawn);
-                    Self.Spawn(Spawn); Camera.Position = Self.Position;
-                    UpdateCamPos(); UpdateCamBounds(); InitializeLighting();
-                    LightingThread = new Thread(() => { while (true) { UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
-                    LightingThread.Start();
-                    LoadGameTextures();
-                    Frame = Frames.Game;
-                }
-                Network.Update();
-            }
-            else if (Frame == Frames.Game)
-            {
-                MouseTileX = (int)Math.Floor(Mouse.CameraPosition.X / TileSize); MouseTileY = (int)Math.Floor(Mouse.CameraPosition.Y / TileSize);
-                CursorOpacity = MathHelper.Clamp((CursorOpacity + ((CursorOpacitySpeed * (float)time.ElapsedGameTime.TotalSeconds) * CursorOpacitySpeedDir)), CursorOpacityMin, CursorOpacityMax);
-                if (CursorOpacity.Matches(CursorOpacityMin, CursorOpacityMax)) CursorOpacitySpeedDir *= -1;
-                Self.SelfUpdate(time);
-                foreach (var t in Players.Where(t => t != null)) t.Update(time);
-                if (Mouse.ScrolledUp()) { Camera.Zoom = MathHelper.Min(4, (float)Math.Round((Camera.Zoom + ZoomRate), 2)); InitializeLighting(); UpdateResCamStuff(); }
-                if (Mouse.ScrolledDown()) { Camera.Zoom = MathHelper.Max(.5f, (float)Math.Round((Camera.Zoom - ZoomRate), 2)); InitializeLighting(); UpdateResCamStuff(); }
-                UpdateCamPos(); UpdateCamBounds();
-                if (Network.IsServer)
-                    while (Timers.Tick("posSync"))
-                        foreach (var player in Players)
-                            if (player?.Connection != null)
-                            {
-                                var packet = new Packet((byte)Packets.Position);
-                                foreach (var other in Players.Where(other => !other.Matches(null, player)))
-                                    packet.Add(other.Slot, other.Position, other.Velocity);
-                                packet.SendTo(player.Connection, NetDeliveryMethod.UnreliableSequenced, 1);
-                            }
-                Network.Update();
-            }
-            #endregion
             Profiler.Stop("Frame Update");
             Textures.Dispose();
             Sound.AutoTerminate();
@@ -294,21 +315,21 @@ namespace Orbis
                     for (var y = CamTilesMinY; y <= CamTilesMaxY; y++)
                         if ((Tiles[x, y].Light > 0) || (Tiles[x, y].Fore == Tile.Tiles.Black))
                         {
-                            var pos = new Vector2((x * TileSize), (y * TileSize));
+                            var pos = new Vector2((x * Tile.Size), (y * Tile.Size));
                             if ((Tiles[x, y].BackID != 0) && Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, pos, Tile.Source(Tiles[x, y].BackID, 0), Color.DarkGray, SpriteEffects.None, .75f);
                             if (Tiles[x, y].ForeID != 0)
                             {
                                 Screen.Draw(TilesTexture, pos, Tile.Source(Tiles[x, y].ForeID, Tiles[x, y].Style), SpriteEffects.None, .25f);
                                 if (Tiles[x, y].HasBorder) Screen.Draw(TilesTexture, pos, Tile.Border(Generation.GenerateStyle(ref Tiles, x, y)), SpriteEffects.None, .2f);
                             }
-                            //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + (TileSize / 2)), (rect.Y + (TileSize / 2))), Color.White, Textures.Origin.Center, new Vector2(.01f * Camera.Zoom));
+                            //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + (Tile.Size / 2)), (rect.Y + (Tile.Size / 2))), Color.White, Textures.Origin.Center, new Vector2(.01f * Camera.Zoom));
                             //Screen.Draw(LightTile, rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));
                         }
                 foreach (var player in Players.Where(player => player != null)) player.Draw();
-                Screen.Draw(TileSelectionTexture, new Rectangle((MouseTileX * TileSize), (MouseTileY * TileSize), TileSize, TileSize), (Color.White * CursorOpacity));
+                Screen.Draw(TileSelectionTexture, new Rectangle((MouseTileX * Tile.Size), (MouseTileY * Tile.Size), Tile.Size, Tile.Size), (Color.White * CursorOpacity));
                 Screen.Cease();
                 Screen.Setup(SpriteSortMode.Deferred, Multiply, Camera.View(Camera.Samplers.Point));
-                Screen.Draw(Lighting, new Rectangle((CamTilesMinX * TileSize), (CamTilesMinY * TileSize), (Lighting.Width * TileSize), (Lighting.Height * TileSize)));
+                Screen.Draw(Lighting, new Rectangle((CamTilesMinX * Tile.Size), (CamTilesMinY * Tile.Size), (Lighting.Width * Tile.Size), (Lighting.Height * Tile.Size)));
                 Screen.Cease();
                 Screen.Setup();
                 Screen.DrawString(("Zoom: " + Camera.Zoom), Font.Load("Consolas"), new Vector2(2), Color.White, Color.Black, new Vector2(.35f));
@@ -337,21 +358,21 @@ namespace Orbis
         public static void UpdateResCamStuff() { ScrWidth = ((Screen.BackBufferWidth / 2f) / Camera.Zoom); ScrHeight = ((Screen.BackBufferHeight / 2f) / Camera.Zoom); }
         public static void UpdateCamPos()
         {
-            Camera.Position = new Vector2(MathHelper.Clamp(Self.Position.X, (ScrWidth + TileSize), (((Tiles.GetLength(0) * TileSize) - ScrWidth) - TileSize)),
-                MathHelper.Clamp(Self.Position.Y, (ScrHeight + TileSize), (((Tiles.GetLength(1) * TileSize) - ScrHeight) - TileSize)));
+            Camera.Position = new Vector2(MathHelper.Clamp(Self.GetPos().X, (ScrWidth + Tile.Size), (((Tiles.GetLength(0) * Tile.Size) - ScrWidth) - Tile.Size)),
+                MathHelper.Clamp(Self.GetPos().Y, (ScrHeight + Tile.Size), (((Tiles.GetLength(1) * Tile.Size) - ScrHeight) - Tile.Size)));
         }
         public static void UpdateCamBounds()
         {
-            CamTilesMinX = (int)Math.Max(0, Math.Floor((Camera.X - ScrWidth) / TileSize - 1));
-            CamTilesMinY = (int)Math.Max(0, Math.Floor((Camera.Y - ScrHeight) / TileSize - 1));
-            CamTilesMaxX = (int)Math.Min((Tiles.GetLength(0) - 1), Math.Ceiling((Camera.X + ScrWidth) / TileSize));
-            CamTilesMaxY = (int)Math.Min((Tiles.GetLength(1) - 1), Math.Ceiling((Camera.Y + ScrHeight) / TileSize));
+            CamTilesMinX = (int)Math.Max(0, Math.Floor((Camera.X - ScrWidth) / Tile.Size - 1));
+            CamTilesMinY = (int)Math.Max(0, Math.Floor((Camera.Y - ScrHeight) / Tile.Size - 1));
+            CamTilesMaxX = (int)Math.Min((Tiles.GetLength(0) - 1), Math.Ceiling((Camera.X + ScrWidth) / Tile.Size));
+            CamTilesMaxY = (int)Math.Min((Tiles.GetLength(1) - 1), Math.Ceiling((Camera.Y + ScrHeight) / Tile.Size));
             LightTilesMinX = Math.Max(0, (CamTilesMinX - LightingUpdateBuffer));
             LightTilesMinY = Math.Max(0, (CamTilesMinY - LightingUpdateBuffer));
             LightTilesMaxX = Math.Min((Tiles.GetLength(0) - 1), (CamTilesMaxX + LightingUpdateBuffer));
             LightTilesMaxY = Math.Min((Tiles.GetLength(1) - 1), (CamTilesMaxY + LightingUpdateBuffer));
         }
-        public static void InitializeLighting() { Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 2), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 2)); }
+        public static void InitializeLighting() { Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / Tile.Size + 2), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / Tile.Size + 2)); }
         public static void UpdateLighting()
         {
             Profiler.Start("Update Lighting");
