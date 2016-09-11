@@ -20,7 +20,7 @@ namespace Orbis
     //  can be destroyed before they hit, and particles' health will constantly decrease as long as it
     //  is 'alive', creating a destruction timer (eg. smoke from a furnace).
 
-    public class Player
+    public class Player : Entity
     {
         private static Player Self => Game.Self;
         private static Player[] Players => Game.Players;
@@ -40,12 +40,11 @@ namespace Orbis
         /// The friendly name of the player.
         /// </summary>
         public string Name;
-        
+
         /// <summary>
         /// The location of the player in the world.
         /// </summary>
-        private Vector2 Position;
-        public Vector2 LastPosition;
+        private Vector2 LastPosition;
         /// <summary>
         /// The player slot that this player occupies in the current server.
         /// </summary>
@@ -90,8 +89,8 @@ namespace Orbis
             get
             {
                 UpdateHitbox();
-                for (var x = (int)Math.Floor((Position.X / Tile.Size) - 1); x <= (int)Math.Ceiling((Position.X / Tile.Size) + 1); x++)
-                    for (var y = (int)Math.Floor((Position.Y / Tile.Size) - 1); y <= (int)Math.Ceiling((Position.Y / Tile.Size) + 1); y++)
+                for (var x = (int)Math.Floor((LinearPosition.X / Tile.Size) - 1); x <= (int)Math.Ceiling((LinearPosition.X / Tile.Size) + 1); x++)
+                    for (var y = (int)Math.Floor((LinearPosition.Y / Tile.Size) - 1); y <= (int)Math.Ceiling((LinearPosition.Y / Tile.Size) + 1); y++)
                         if (Game.InBounds(x, y) && Tiles[x, y].Solid)
                         {
                             var hitbox = Polygon.CreateSquare(Tile.Size);
@@ -104,14 +103,14 @@ namespace Orbis
 
         public void Update(GameTime time)
         {
-            Velocity = new Vector2((float)Math.Round(Velocity.X / Tile.Size) * Tile.Size, (float)Math.Round(Velocity.Y / Tile.Size) * Tile.Size);
             Move(Velocity * (float)time.ElapsedGameTime.TotalSeconds); UpdateTilePos();
+            //PixelPosition = new Vector2((int) Math.Round(Position.X), (int) Math.Round(Position.Y));
             MovementResistance = Tiles[TileX, (TileY + 2)].MovementResistance;
-            if (LastPosition != Position)
+            if (LastPosition != LinearPosition)
             {
-                if (Position.X > LastPosition.X) Direction = 1;
-                else if (Position.X < LastPosition.X) Direction = -1;
-                LastPosition = Position;
+                if (LinearPosition.X > LastPosition.X) Direction = 1;
+                else if (LinearPosition.X < LastPosition.X) Direction = -1;
+                LastPosition = LinearPosition;
             }
             var movementResistance = (MovementResistance * (float)time.ElapsedGameTime.TotalSeconds);
             if (Velocity.X > 0) Velocity.X = MathHelper.Clamp((Velocity.X - movementResistance), 0, MaxXVel);
@@ -126,19 +125,18 @@ namespace Orbis
                 if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) { Velocity.Y = -300; Jumps++; }
                 if (Keyboard.Holding(Keyboard.Keys.A)) Velocity.X = -MovementSpeed;
                 if (Keyboard.Holding(Keyboard.Keys.D)) Velocity.X = MovementSpeed;
-                // Just some test controls. These lock to pixels. How do we get the velocity to lock to pixels though?
                 if (Settings.IsDebugMode)
                 {
-                    if (Keyboard.Holding(Keyboard.Keys.Left)) Position.X -= Camera.Zoom;
-                    if (Keyboard.Holding(Keyboard.Keys.Right)) Position.X += Camera.Zoom;
+                    if (Keyboard.Holding(Keyboard.Keys.Left)) LinearX -= Camera.Zoom;
+                    if (Keyboard.Holding(Keyboard.Keys.Right)) LinearY += Camera.Zoom;
                 }
             }
-            if (Network.IsClient) while (Timers.Tick("posSync")) new Packet((byte)Packets.Position, Position, Velocity).Send(NetDeliveryMethod.UnreliableSequenced, 1);
+            if (Network.IsClient) while (Timers.Tick("posSync")) new Packet((byte)Packets.Position, LinearPosition, Velocity).Send(NetDeliveryMethod.UnreliableSequenced, 1);
         }
         public void Draw()
         {
-            Screen.Draw(PlayerTexture, Position, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
-            if (Settings.IsDebugMode) Hitbox.Draw(Color.Red*.5f, LineThickness);
+            Screen.Draw(PlayerTexture, WorldPosition, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
+            if (Settings.IsDebugMode) { Hitbox.Position = WorldPosition; Hitbox.Draw(Color.Red*.5f, LineThickness); }
         }
 
         public void Move(Vector2 offset)
@@ -146,45 +144,34 @@ namespace Orbis
             const float specific = 1;
             if ((offset.X != 0) && !Collides)
             {
-                Position.X += offset.X;
+                LinearX += offset.X;
                 if (Collides)
                 {
-                    Position.X -= offset.X;
+                    LinearX -= offset.X;
                     Velocity.X = 0;
-                    while (!Collides) Position.X += offset.X < 0 ? -specific : specific;
-                    while (Collides) Position.X -= offset.X < 0 ? -specific : specific;
+                    while (!Collides) LinearX += offset.X < 0 ? -specific : specific;
+                    while (Collides) LinearX -= offset.X < 0 ? -specific : specific;
                 }
             }
             if ((offset.Y != 0) && !Collides)
             {
-                Position.Y += offset.Y;
+                LinearY += offset.Y;
                 if (Collides)
                 {
-                    Position.Y -= offset.Y;
+                    LinearY -= offset.Y;
                     if (offset.Y > 0) Jumps = 0;
                     Velocity.Y = 0;
-                    while (!Collides) Position.Y += offset.Y < 0 ? -specific : specific;
-                    while (Collides) Position.Y -= offset.Y < 0 ? -specific : specific;
+                    while (!Collides) LinearY += offset.Y < 0 ? -specific : specific;
+                    while (Collides) LinearY -= offset.Y < 0 ? -specific : specific;
                 }
             }
         }
 
-        public void SetPos(Vector2 pos)
-        {
-            pos.X = (float)Math.Round(pos.X / Camera.Zoom) * Camera.Zoom;
-            pos.Y = (float)Math.Round(pos.Y / Camera.Zoom) * Camera.Zoom;
-            Position = pos;
-        }
-        public Vector2 GetPos()
-        {
-            return Position;
-        }
-
-        public void Spawn(Point spawn) { Position = new Vector2(((spawn.X * Tile.Size) + (Tile.Size / 2f)), ((spawn.Y * Tile.Size) + (Tile.Size / 2f))); }
-        public void UpdateHitbox() { Hitbox.Position = Position; }
-        public void UpdateTilePos() { TileX = (int)(Position.X / Tile.Size); TileY = (int)(Position.Y / Tile.Size); }
+        public void Spawn(Point spawn) { LinearPosition = new Vector2(((spawn.X * Tile.Size) + (Tile.Size / 2f)), ((spawn.Y * Tile.Size) + (Tile.Size / 2f))); }
+        public void UpdateHitbox() { Hitbox.Position = LinearPosition; }
+        public void UpdateTilePos() { TileX = (int)(LinearPosition.X / Tile.Size); TileY = (int)(LinearPosition.Y / Tile.Size); }
         public void UpdateLastTilePos() { LastTileX = TileX; LastTileY = TileY; }
-        public float VolumeFromDistance(Vector2 position, float fade, float max) { return Position.VolumeFromDistance(position, fade, max); }
+        public float VolumeFromDistance(Vector2 position, float fade, float max) { return LinearPosition.VolumeFromDistance(position, fade, max); }
         public static Player Get(NetConnection connection) { return Players.FirstOrDefault(t => (t != null) && (t.Connection == connection)); }
         public static Player Add(Player player)
         {
