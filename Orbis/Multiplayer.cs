@@ -93,9 +93,7 @@ namespace Orbis
                 Players = new Player[message.ReadByte() + 1];
                 Self = Player.Set(message.ReadByte(), new Player(Settings.Get("Name")));
                 Timers.Add("posSync", 1 / 20d);
-                Camera = new Camera() { Zoom = Game.CameraZoom };
-                Game.UpdateResCamStuff();
-                LineThickness = (1 / Camera.Zoom);
+                Camera = new Camera() { Zoom = Game.CameraZoom }; Game.UpdateResCamStuff(); LineThickness = (1 / Camera.Zoom);
                 Frame = Frames.LoadGame;
                 new Packet((byte)Packets.PlayerData).Send();
                 new Packet((byte)Packets.TileData).Send();
@@ -123,8 +121,7 @@ namespace Orbis
                     WriteRectangleOfTiles(ref Game.Tiles, ref data, (Spawn.X - (ChunkWidth / 2)), (Spawn.Y - (ChunkHeight / 2)), ChunkWidth, ChunkHeight);
                     data.Add((ushort)Spawn.X, (ushort)Spawn.Y);
                     Player sender = Player.Get(message.SenderConnection);
-                    sender.Position = new Vector2((Spawn.X * TileSize), (Spawn.Y * TileSize));
-                    sender.TileX = sender.LastTileX = Spawn.X; sender.TileY = sender.LastTileY = Spawn.Y;
+                    sender.Spawn(Spawn); sender.LastTileX = Spawn.X; sender.LastTileY = Spawn.Y;
                     data.SendTo(message.SenderConnection);
                 }
                 else
@@ -132,11 +129,8 @@ namespace Orbis
                     Game.Tiles = new Tile[message.ReadUInt16(), message.ReadUInt16()];
                     ReadRectangleOfTiles(ref message, ref Game.Tiles);
                     Spawn = new Point(message.ReadUInt16(), message.ReadUInt16());
-                    Self.Position = new Vector2((Spawn.X * TileSize), (Spawn.Y * TileSize));
-                    Self.UpdateTilePos(); Self.UpdateLastTilePos();
-                    Camera.Position = Self.Position;
-                    Game.UpdateCamTilesPos();
-                    Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int)Math.Ceiling((Screen.BackBufferWidth / Camera.Zoom) / TileSize + 1), (int)Math.Ceiling((Screen.BackBufferHeight / Camera.Zoom) / TileSize + 1));
+                    Self.Spawn(Spawn); Camera.Position = Self.Position;
+                    Game.UpdateCamPos(); Game.UpdateCamBounds(); Game.InitializeLighting();
                     LightingThread = new Thread(() => { while (true) { Game.UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                     LightingThread.Start();
                     Game.LoadGameTextures();
@@ -157,6 +151,7 @@ namespace Orbis
                     if (sender != null)
                     {
                         sender.Position = message.ReadVector2();
+                        sender.Velocity = message.ReadVector2();
                         sender.UpdateTilePos();
                         //while (sender.TileX < sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2) - 1), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX--; data.SendTo(sender.Connection); }
                         //while (sender.TileX > sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX + ((ChunkWidth / 2))), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX++; data.SendTo(sender.Connection); }
@@ -171,13 +166,14 @@ namespace Orbis
                 }
                 else
                 {
-                    var count = (message.LengthBytes - 1) / 9;
+                    var count = (message.LengthBytes - 1) / 17;
                     for (var i = 0; i < count; i++)
                     {
                         var sender = Players[message.ReadByte()];
                         if (sender != null)
                         {
                             sender.Position = message.ReadVector2();
+                            sender.Velocity = message.ReadVector2();
                         }
                     }
                 }
@@ -188,34 +184,34 @@ namespace Orbis
         {
             data.Add((ushort)x, (ushort)y, (ushort)width, (ushort)height);
             int endX = (x + width), endY = (y + height);
-            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) data.Add(tiles[j, k].ForeID, tiles[j, k].BackID);
+            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) data.Add(tiles[j, k].ForeID, tiles[j, k].BackID, tiles[j, k].Style);
         }
         public static void ReadRectangleOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), width = data.ReadUInt16(), height = data.ReadUInt16(), endX = (x + width), endY = (y + height);
-            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) { tiles[j, k].ForeID = data.ReadByte(); tiles[j, k].BackID = data.ReadByte(); }
+            for (var j = x; j < endX; j++) for (var k = y; k < endY; k++) if (Game.InBounds(j, k)) { tiles[j, k].ForeID = data.ReadByte(); tiles[j, k].BackID = data.ReadByte(); tiles[j, k].Style = data.ReadByte(); }
         }
         public static void WriteRowOfTiles(ref Tile[,] tiles, ref Packet data, int x, int y, int width)
         {
             data.Add((ushort)x, (ushort)y, (ushort)width);
             var endX = (x + width);
-            for (var j = x; j < endX; j++) data.Add(tiles[j, y].ForeID, tiles[j, y].BackID);
+            for (var j = x; j < endX; j++) data.Add(tiles[j, y].ForeID, tiles[j, y].BackID, tiles[j, y].Style);
         }
         public static void ReadRowOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), width = data.ReadUInt16(), endX = (x + width);
-            for (var j = x; j < endX; j++) { tiles[j, y].ForeID = data.ReadByte(); tiles[j, y].BackID = data.ReadByte(); }
+            for (var j = x; j < endX; j++) { tiles[j, y].ForeID = data.ReadByte(); tiles[j, y].BackID = data.ReadByte(); tiles[j, y].Style = data.ReadByte(); }
         }
         public static void WriteColumnOfTiles(ref Tile[,] tiles, ref Packet data, int x, int y, int height)
         {
             data.Add((ushort)x, (ushort)y, (ushort)height);
             var endY = (y + height);
-            for (var k = y; k < endY; k++) data.Add(tiles[x, k].ForeID, tiles[x, k].BackID);
+            for (var k = y; k < endY; k++) data.Add(tiles[x, k].ForeID, tiles[x, k].BackID, tiles[x, k].Style);
         }
         public static void ReadColumnOfTiles(ref NetIncomingMessage data, ref Tile[,] tiles)
         {
             int x = data.ReadUInt16(), y = data.ReadUInt16(), height = data.ReadUInt16(), endY = (y + height);
-            for (var k = y; k < endY; k++) { tiles[x, k].ForeID = data.ReadByte(); tiles[x, k].BackID = data.ReadByte(); }
+            for (var k = y; k < endY; k++) { tiles[x, k].ForeID = data.ReadByte(); tiles[x, k].BackID = data.ReadByte(); tiles[x, k].Style = data.ReadByte(); }
         }
     }
 }

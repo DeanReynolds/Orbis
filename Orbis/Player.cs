@@ -20,7 +20,7 @@ namespace Orbis
         private static Tile[,] Tiles => Game.Tiles;
         private static Camera Camera => Game.Camera;
         private static float LineThickness { get { return Game.LineThickness; } set { Game.LineThickness = value; } }
-
+        
         private const int TileSize = Game.TileSize;
 
         /// <summary>
@@ -44,7 +44,7 @@ namespace Orbis
         /// </summary>
         public byte Slot;
 
-        public const float Gravity = 15, MaxYVel = (Gravity / 2), MaxXVel = 20;
+        public const float Gravity = 720, MaxYVel = 720, MaxXVel = 1200;
         public byte Jumps;
         public float MovementSpeed { get; private set; }
         public float MovementResistance { get; private set; }
@@ -97,29 +97,29 @@ namespace Orbis
 
         public void Update(GameTime time)
         {
+            Move(Velocity * (float)time.ElapsedGameTime.TotalSeconds); UpdateTilePos();
+            MovementResistance = Tiles[TileX, (TileY + 2)].MovementResistance;
             if (LastPosition != Position)
             {
                 if (Position.X > LastPosition.X) Direction = 1;
                 else if (Position.X < LastPosition.X) Direction = -1;
                 LastPosition = Position;
             }
+            var movementResistance = (MovementResistance * (float)time.ElapsedGameTime.TotalSeconds);
+            if (Velocity.X > 0) Velocity.X = MathHelper.Clamp((Velocity.X - movementResistance), 0, MaxXVel);
+            else if (Velocity.X < 0) Velocity.X = MathHelper.Clamp((Velocity.X + movementResistance), -MaxXVel, 0);
+            Velocity.Y = MathHelper.Min(MaxYVel, (Velocity.Y + (Gravity * (float)time.ElapsedGameTime.TotalSeconds)));
         }
         public void SelfUpdate(GameTime time)
         {
-            if (Game.InBounds(TileX, (TileY + 2))) { if (Tiles[TileX, (TileY + 2)].Solid) MovementSpeed = Tiles[TileX, (TileY + 2)].MovementSpeed; MovementResistance = Tiles[TileX, (TileY + 2)].MovementResistance; }
-            if (Velocity.X > 0) Velocity.X = MathHelper.Clamp((Velocity.X - (float)(MovementResistance * time.ElapsedGameTime.TotalSeconds)), 0, MaxXVel);
-            else if (Velocity.X < 0) Velocity.X = MathHelper.Clamp((Velocity.X + (float)(MovementResistance * time.ElapsedGameTime.TotalSeconds)), -MaxXVel, 0);
-            Velocity.Y = MathHelper.Min(MaxYVel, (Velocity.Y + (float)(Gravity * time.ElapsedGameTime.TotalSeconds)));
+            if (Tiles[TileX, (TileY + 2)].Solid) MovementSpeed = Tiles[TileX, (TileY + 2)].MovementSpeed;
             if (Globe.IsActive)
             {
-                if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) { Velocity.Y = -5; Jumps++; }
-                if (Keyboard.Holding(Keyboard.Keys.A)) Velocity.X = -(MovementSpeed / 2);
-                if (Keyboard.Holding(Keyboard.Keys.D)) Velocity.X = (MovementSpeed / 2);
+                if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) { Velocity.Y = -300; Jumps++; }
+                if (Keyboard.Holding(Keyboard.Keys.A)) Velocity.X = -MovementSpeed;
+                if (Keyboard.Holding(Keyboard.Keys.D)) Velocity.X = MovementSpeed;
             }
-            Move(Velocity); UpdateTilePos();
-            Camera.Position = Position;
-            /*if ((LastTileX != TileX) || (LastTileY != TileY)) */{ Game.UpdateCamTilesPos(); UpdateLastTilePos(); }
-            if (Timers.Tick("posSync") && Network.IsClient) new Packet((byte)Packets.Position, Position).Send(NetDeliveryMethod.UnreliableSequenced, 1);
+            if (Network.IsClient) while (Timers.Tick("posSync")) new Packet((byte)Packets.Position, Position, Velocity).Send(NetDeliveryMethod.UnreliableSequenced, 1);
         }
         public void Draw()
         {
@@ -155,6 +155,7 @@ namespace Orbis
             }
         }
 
+        public void Spawn(Point spawn) { Position = new Vector2(((spawn.X * TileSize) + (TileSize / 2f)), ((spawn.Y * TileSize) + (TileSize / 2f))); }
         public void UpdateHitbox() { Hitbox.Position = Position; }
         public void UpdateTilePos() { TileX = (int)(Position.X / TileSize); TileY = (int)(Position.Y / TileSize); }
         public void UpdateLastTilePos() { LastTileX = TileX; LastTileY = TileY; }
