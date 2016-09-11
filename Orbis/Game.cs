@@ -299,7 +299,7 @@ namespace Orbis
                             if (Tiles[x, y].ForeID != 0)
                             {
                                 Screen.Draw(TilesTexture, pos, Tile.Source(Tiles[x, y].ForeID, Tiles[x, y].Style), SpriteEffects.None, .25f);
-                                Screen.Draw(TilesTexture, pos, Tile.Border(Generation.GenerateStyle(ref Tiles, x, y)), SpriteEffects.None, .2f);
+                                if (Tiles[x, y].HasBorder) Screen.Draw(TilesTexture, pos, Tile.Border(Generation.GenerateStyle(ref Tiles, x, y)), SpriteEffects.None, .2f);
                             }
                             //Screen.DrawString(Tiles[x, y].Light.ToString(), Font.Load("Consolas"), new Vector2((rect.X + (TileSize / 2)), (rect.Y + (TileSize / 2))), Color.White, Textures.Origin.Center, new Vector2(.01f * Camera.Zoom));
                             //Screen.Draw(LightTile, rect, new Color(255, 255, 255, (255 - Tiles[x, y].Light)));

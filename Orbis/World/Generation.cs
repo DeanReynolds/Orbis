@@ -106,17 +106,6 @@ namespace Orbis.World
 
         public static byte GenerateStyle(ref Tile[,] tiles, int x, int y)
         {
-            //if (tiles[x, y].Fore == Tile.Tiles.Leaves)
-            //{
-            //    if (Globe.Chance(20))
-            //    {
-            //        var style = (byte)Globe.Pick(2, 3);
-            //        if (style == 2) { if ((tiles[(x - 1), y].Fore == Tile.Tiles.Leaves) && (tiles[(x - 1), y].Style == style)) style = (byte)Globe.Pick(0, 3); }
-            //        else if (style == 3) { if ((tiles[(x - 1), y].Fore == Tile.Tiles.Leaves) && (tiles[(x - 1), y].Style == style)) style = (byte)Globe.Pick(0, 2); }
-            //        tiles[x, y].Style = style;
-            //    }
-            //}
-            if (!tiles[x, y].HasBorder) return 0;
             var tile = tiles[x, y];
             byte style = 0;
             if (tiles[x, (y - 1)].BorderJoins(tile)) style++;
