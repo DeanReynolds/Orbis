@@ -24,7 +24,6 @@ namespace Orbis
         private static RenderTarget2D Lighting { get { return Game.Lighting; } set { Game.Lighting = value; } }
         private static Thread LightingThread { get { return Game.LightingThread; } set { Game.LightingThread = value; } }
         private static Camera Camera { get { return Game.Camera; } set { Game.Camera = value; } }
-        private static float LineThickness { get { return Game.LineThickness; } set { Game.LineThickness = value; } }
 
         public static void CreateLobby(string playerName)
         {
@@ -92,7 +91,7 @@ namespace Orbis
                     Players = new Player[message.ReadByte() + 1];
                     Self = Player.Set(message.ReadByte(), new Player(Settings.Get("Name")));
                     Timers.Add("posSync", 1 / 20d);
-                    Camera = new Camera() { Zoom = Game.CameraZoom }; Game.UpdateResCamStuff(); LineThickness = (1 / Camera.Zoom);
+                    Camera = new Camera() { Zoom = Game.CameraZoom }; Game.UpdateResCamStuff();
                     Frame = Frames.LoadGame;
                     new Packet((byte)Packets.PlayerData).Send();
                     new Packet((byte)Packets.TileData).Send();
@@ -126,8 +125,7 @@ namespace Orbis
                         Game.Tiles = new Tile[message.ReadUInt16(), message.ReadUInt16()];
                         ReadRectangleOfTiles(ref message, ref Game.Tiles);
                         Spawn = new Point(message.ReadUInt16(), message.ReadUInt16());
-                        Self.Spawn(Spawn); Camera.Position = Self.WorldPosition;
-                        Game.UpdateCamPos(); Game.UpdateCamBounds(); Game.InitializeLighting();
+                        Self.Spawn(Spawn); Game.UpdateCamPos(); Game.UpdateCamBounds(); Game.InitializeLighting();
                         LightingThread = new Thread(() => { while (true) { Game.UpdateLighting(); Thread.Sleep(100); } }) { Name = "Lighting", IsBackground = true };
                         LightingThread.Start();
                         Game.LoadGameTextures();

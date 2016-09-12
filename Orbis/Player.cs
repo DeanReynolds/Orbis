@@ -33,10 +33,6 @@ namespace Orbis
         /// </summary>
         public NetConnection Connection;
         /// <summary>
-        /// The collision polygon for the player.
-        /// </summary>
-        public Polygon Hitbox;
-        /// <summary>
         /// The friendly name of the player.
         /// </summary>
         public string Name;
@@ -54,7 +50,7 @@ namespace Orbis
         public byte Jumps;
         public float MovementSpeed { get; private set; }
         public float MovementResistance { get; private set; }
-        public Vector2 Velocity = Vector2.Zero, Scale;
+        public Vector2 Scale;
         public static Texture2D PlayerTexture => Game.PlayerTexture;
 
         public int TileX, TileY, LastTileX, LastTileY;
@@ -63,48 +59,20 @@ namespace Orbis
         /// <summary>
         /// Creates a player with only a name.
         /// </summary>
-        /// <param name="Name">The username of the player.</param>
-        public Player(string Name)
-        {
-            // Pass the name through.
-            this.Name = Name;
-            Load();
-        }
+        /// <param name="name">The username of the player.</param>
+        public Player(string name) : base(CollosionOptions.CollidesWithTerrain) { Name = name; Load(); }
         /// <summary>
         /// Creates a player with a slot and a name.
         /// </summary>
-        /// <param name="Slot">The slot number to place the player into.</param>
-        /// <param name="Name">The username of the player.</param>
-        public Player(byte Slot, string Name)
-        {
-            // Pass the slot and name through.
-            this.Slot = Slot;
-            this.Name = Name;
-            Load();
-        }
-        
-        public void Load() { Scale = new Vector2(PlayerTexture.Width, PlayerTexture.Height); Hitbox = Polygon.CreateRectangle(Scale); }
-        public bool Collides
-        {
-            get
-            {
-                UpdateHitbox();
-                for (var x = (int)Math.Floor((LinearPosition.X / Tile.Size) - 1); x <= (int)Math.Ceiling((LinearPosition.X / Tile.Size) + 1); x++)
-                    for (var y = (int)Math.Floor((LinearPosition.Y / Tile.Size) - 1); y <= (int)Math.Ceiling((LinearPosition.Y / Tile.Size) + 1); y++)
-                        if (Game.InBounds(x, y) && Tiles[x, y].Solid)
-                        {
-                            var hitbox = Polygon.CreateSquare(Tile.Size);
-                            hitbox.Position = new Vector2(((x * Tile.Size) + (Tile.Size / 2f)), ((y * Tile.Size) + (Tile.Size / 2f)));
-                            if (Hitbox.Intersects(hitbox)) return true;
-                        }
-                return false;
-            }
-        }
+        /// <param name="slot">The slot number to place the player into.</param>
+        /// <param name="name">The username of the player.</param>
+        public Player(byte slot, string name) : base(CollosionOptions.CollidesWithTerrain) { Slot = slot; Name = name; Load(); }
+        public void Load() { Scale = new Vector2((PlayerTexture.Width - 2), (PlayerTexture.Height - 2)); Hitbox = Polygon.CreateRectangle(Scale); }
 
-        public void Update(GameTime time)
+        public new void Update(GameTime time)
         {
-            Move(Velocity * (float)time.ElapsedGameTime.TotalSeconds); UpdateTilePos();
-            //PixelPosition = new Vector2((int) Math.Round(Position.X), (int) Math.Round(Position.Y));
+            base.Update(time);
+            UpdateTilePos();
             MovementResistance = Tiles[TileX, (TileY + 2)].MovementResistance;
             if (LastPosition != LinearPosition)
             {
@@ -119,6 +87,7 @@ namespace Orbis
         }
         public void SelfUpdate(GameTime time)
         {
+            if (IsOnGround) Jumps = 0;
             if (Tiles[TileX, TileY + 2].Solid) MovementSpeed = Tiles[TileX, TileY + 2].MovementSpeed;
             if (Globe.IsActive)
             {
@@ -127,8 +96,9 @@ namespace Orbis
                 if (Keyboard.Holding(Keyboard.Keys.D)) Velocity.X = MovementSpeed;
                 if (Settings.IsDebugMode)
                 {
-                    if (Keyboard.Holding(Keyboard.Keys.Left)) LinearX -= Camera.Zoom;
-                    if (Keyboard.Holding(Keyboard.Keys.Right)) LinearY += Camera.Zoom;
+                    var spd = (Keyboard.HoldingShift() ? 10 : 5);
+                    if (Keyboard.Holding(Keyboard.Keys.Left)) LinearX -= spd;
+                    if (Keyboard.Holding(Keyboard.Keys.Right)) LinearX += spd;
                 }
             }
             if (Network.IsClient) while (Timers.Tick("posSync")) new Packet((byte)Packets.Position, LinearPosition, Velocity).Send(NetDeliveryMethod.UnreliableSequenced, 1);
@@ -136,39 +106,10 @@ namespace Orbis
         public void Draw()
         {
             Screen.Draw(PlayerTexture, WorldPosition, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
-            if (Settings.IsDebugMode) { Hitbox.Position = WorldPosition; Hitbox.Draw(Color.Red*.5f, LineThickness); }
-        }
-
-        public void Move(Vector2 offset)
-        {
-            const float specific = 1;
-            if ((offset.X != 0) && !Collides)
-            {
-                LinearX += offset.X;
-                if (Collides)
-                {
-                    LinearX -= offset.X;
-                    Velocity.X = 0;
-                    while (!Collides) LinearX += offset.X < 0 ? -specific : specific;
-                    while (Collides) LinearX -= offset.X < 0 ? -specific : specific;
-                }
-            }
-            if ((offset.Y != 0) && !Collides)
-            {
-                LinearY += offset.Y;
-                if (Collides)
-                {
-                    LinearY -= offset.Y;
-                    if (offset.Y > 0) Jumps = 0;
-                    Velocity.Y = 0;
-                    while (!Collides) LinearY += offset.Y < 0 ? -specific : specific;
-                    while (Collides) LinearY -= offset.Y < 0 ? -specific : specific;
-                }
-            }
+            if (Settings.IsDebugMode) Hitbox.Draw(Color.Red*.5f, LineThickness);
         }
 
         public void Spawn(Point spawn) { LinearPosition = new Vector2(((spawn.X * Tile.Size) + (Tile.Size / 2f)), ((spawn.Y * Tile.Size) + (Tile.Size / 2f))); }
-        public void UpdateHitbox() { Hitbox.Position = LinearPosition; }
         public void UpdateTilePos() { TileX = (int)(LinearPosition.X / Tile.Size); TileY = (int)(LinearPosition.Y / Tile.Size); }
         public void UpdateLastTilePos() { LastTileX = TileX; LastTileY = TileY; }
         public float VolumeFromDistance(Vector2 position, float fade, float max) { return LinearPosition.VolumeFromDistance(position, fade, max); }

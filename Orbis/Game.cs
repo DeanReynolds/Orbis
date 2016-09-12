@@ -79,7 +79,7 @@ namespace Orbis
         public static Camera Camera;
         public static sbyte CursorOpacitySpeedDir = (sbyte) Globe.Pick(-1, 1);
 
-        public static float LineThickness = 1, CursorOpacity = Globe.Random(CursorOpacityMin, CursorOpacityMax);
+        public static float LineThickness = 2, CursorOpacity = Globe.Random(CursorOpacityMin, CursorOpacityMax);
 
         public static int CamTilesMinX, CamTilesMinY, CamTilesMaxX, CamTilesMaxY, LightTilesMinX, LightTilesMinY, LightTilesMaxX, LightTilesMaxY;
 
@@ -213,10 +213,8 @@ namespace Orbis
                     {
                         Camera = new Camera {Zoom = CameraZoom};
                         UpdateResCamStuff();
-                        LineThickness = 1/Camera.Zoom;
                         Tiles = Generation.Generate(8400, 2400, out Spawn);
-                        Self.Spawn(Spawn); Camera.Position = Self.WorldPosition;
-                        UpdateCamPos(); UpdateCamBounds(); InitializeLighting();
+                        Self.Spawn(Spawn); UpdateCamPos(); UpdateCamBounds(); InitializeLighting();
                         LightingThread = new Thread(() =>
                         {
                             while (true)
@@ -383,6 +381,7 @@ namespace Orbis
                     Screen.Cease();
                     Screen.Setup();
                     Screen.DrawString("Zoom: " + Camera.Zoom, Font.Load("Consolas"), new Vector2(2), Color.White, Color.Black, new Vector2(.35f));
+                    Screen.DrawString(("IsFalling: " + Self.IsFalling + " - IsOnGround: " + Self.IsOnGround), Font.Load("Consolas"), new Vector2(0, 37), Color.White, Color.Black, new Vector2(.35f));
                     //Screen.DrawString(("CamTiles: " + CamTilesMinX + "," + CamTilesMinY + " - " + CamTilesMaxX + "," + CamTilesMaxY), Font.Load("Consolas"), new Vector2(0, 37), Color.White, Color.Black, new Vector2(.35f));
                     //Screen.DrawString(("LightTiles: " + LightTilesMinX + "," + LightTilesMinY + " - " + LightTilesMaxX + "," + LightTilesMaxY), Font.Load("Consolas"), new Vector2(0, 72), Color.White, Color.Black, new Vector2(.35f));
                     Screen.Cease();
@@ -432,6 +431,7 @@ namespace Orbis
         {
             ScrWidth = Screen.BackBufferWidth/2f/Camera.Zoom;
             ScrHeight = Screen.BackBufferHeight/2f/Camera.Zoom;
+            //LineThickness = (1/Camera.Zoom);
         }
         public static void UpdateCamPos()
         {
@@ -486,4 +486,4 @@ namespace Orbis
             Profiler.Stop("Draw Lighting");
         }
     }
-}
+} 
