@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Orbis.World;
 using SharpXNA.Collision;
 
@@ -8,6 +9,7 @@ namespace Orbis
     public class Entity
     {
         private static Tile[,] Tiles => Game.Tiles;
+        private static Texture2D PlayerTexture => Game.PlayerTexture;
 
         private Vector2 _linearPosition;
         public Vector2 LinearPosition
@@ -15,9 +17,13 @@ namespace Orbis
             get { return _linearPosition; }
             set
             {
+                value.X = MathHelper.Clamp(value.X, (Tile.Size + (PlayerTexture.Width / 2)), (((Tiles.GetLength(0) - 1) * Tile.Size) - (PlayerTexture.Width / 2)));
+                value.Y = MathHelper.Clamp(value.Y, (Tile.Size + (PlayerTexture.Height / 2)), (((Tiles.GetLength(1) - 1) * Tile.Size) - (PlayerTexture.Height / 2)));
                 _linearPosition = value;
                 _worldPosition = new Vector2((int) Math.Round(value.X), (int) Math.Round(value.Y));
-                Hitbox.Position = WorldPosition;
+                Hitbox.Position = _worldPosition;
+                TileX = (int)Math.Floor(value.X / Tile.Size);
+                TileY = (int)Math.Floor(value.Y / Tile.Size);
             }
         }
 
@@ -29,9 +35,11 @@ namespace Orbis
             get { return LinearPosition.X; }
             set
             {
+                value = MathHelper.Clamp(value, (Tile.Size + (PlayerTexture.Width / 2)), (((Tiles.GetLength(0) - 1) * Tile.Size) - (PlayerTexture.Width / 2)));
                 _linearPosition.X = value;
                 _worldPosition.X = (int) Math.Round(value);
-                Hitbox.X = WorldPosition.X;
+                Hitbox.X = _worldPosition.X;
+                TileX = (int)Math.Floor(value / Tile.Size);
             }
         }
         public float LinearY
@@ -39,32 +47,55 @@ namespace Orbis
             get { return LinearPosition.Y; }
             set
             {
+                value = MathHelper.Clamp(value, (Tile.Size + (PlayerTexture.Height / 2)), (((Tiles.GetLength(1) - 1) * Tile.Size) - (PlayerTexture.Height / 2)));
                 _linearPosition.Y = value;
                 _worldPosition.Y = (int) Math.Round(value);
-                Hitbox.Y = WorldPosition.Y;
+                Hitbox.Y = _worldPosition.Y;
+                TileY = (int)Math.Floor(value / Tile.Size);
             }
         }
 
+        public int TileX, TileY;
+
         private readonly CollosionOptions _collisionOptions;
         [Flags] public enum CollosionOptions { None = 0, CollidesWithTerrain = 1 }
+
+        /// <summary>
+        /// Create a new Entity.
+        /// </summary>
+        /// <param name="collisionOptions">The flags for collision detection when moving.</param>
         public Entity(CollosionOptions collisionOptions) { _collisionOptions = collisionOptions; }
+        /// <summary>
+        /// Create a new Entity.
+        /// </summary>
+        /// <param name="hitBox">The hitbox polygon for the entity.</param>
+        /// <param name="collisionOptions">The flags for collision detection when moving.</param>
+        public Entity(Polygon hitBox, CollosionOptions collisionOptions) { Hitbox = hitBox; _collisionOptions = collisionOptions; }
 
         public bool IsFalling, IsOnGround;
         public Vector2 Velocity;
-        public Polygon Hitbox;
 
-        public void Update(GameTime time)
+        private Polygon _hitBox;
+        private int _tilesWidth, _tilesHeight;
+        public Polygon Hitbox
         {
-            if (Velocity.Y > 0) IsFalling = true;
-            Move(Velocity*(float) time.ElapsedGameTime.TotalSeconds);
+            get { return _hitBox; }
+            set
+            {
+                _tilesWidth = (int) Math.Ceiling((value.Width/Tile.Size)/2);
+                _tilesHeight = (int) Math.Ceiling((value.Height/Tile.Size)/2);
+                _hitBox = value;
+            }
         }
+
+        public void Update(GameTime time) { Move(Velocity*(float) time.ElapsedGameTime.TotalSeconds); }
 
         public bool CollidesWithTerrain
         {
             get
             {
-                for (var x = (int)Math.Floor((LinearPosition.X / Tile.Size) - 1); x <= (int)Math.Ceiling((LinearPosition.X / Tile.Size) + 1); x++)
-                    for (var y = (int)Math.Floor((LinearPosition.Y / Tile.Size) - 1); y <= (int)Math.Ceiling((LinearPosition.Y / Tile.Size) + 1); y++)
+                for (var x = (TileX - _tilesWidth); x <= (TileX + _tilesWidth); x++)
+                    for (var y = (TileY - _tilesHeight); y <= (TileY + _tilesHeight); y++)
                         if (Game.InBounds(x, y) && Tiles[x, y].Solid)
                         {
                             var hitbox = Polygon.CreateSquare(Tile.Size);
@@ -77,51 +108,39 @@ namespace Orbis
         public void Move(Vector2 offset)
         {
             const float specific = 1;
-            if (offset.X != 0)
+            while (offset.X != 0)
             {
-                LinearX += offset.X;
-                Hitbox.Position = WorldPosition;
+                var val = MathHelper.Min(MathHelper.Max(offset.X, -Tile.Size), Tile.Size);
+                LinearX += val;
                 if (_collisionOptions.HasFlag(CollosionOptions.CollidesWithTerrain) && CollidesWithTerrain)
                 {
-                    LinearX -= offset.X;
-                    Hitbox.Position = WorldPosition;
+                    LinearX -= val;
                     Velocity.X = 0;
-                    while (!CollidesWithTerrain)
-                    {
-                        LinearX += offset.X < 0 ? -specific : specific;
-                        Hitbox.Position = WorldPosition;
-                    }
-                    while (CollidesWithTerrain)
-                    {
-                        LinearX -= offset.X < 0 ? -specific : specific;
-                        Hitbox.Position = WorldPosition;
-                    }
+                    var normal = offset.X < 0 ? -specific : specific;
+                    while (!CollidesWithTerrain) LinearX += normal;
+                    while (CollidesWithTerrain) LinearX -= normal;
+                    break;
                 }
+                offset.X -= val;
             }
-            if (offset.Y != 0)
+            while (offset.Y != 0)
             {
-                LinearY += offset.Y;
-                Hitbox.Position = WorldPosition;
+                var val = MathHelper.Min(MathHelper.Max(offset.Y, -Tile.Size), Tile.Size);
+                LinearY += val;
                 IsOnGround = false;
                 if (offset.Y > 0) IsFalling = true;
                 if (_collisionOptions.HasFlag(CollosionOptions.CollidesWithTerrain) && CollidesWithTerrain)
                 {
-                    LinearY -= offset.Y;
-                    Hitbox.Position = WorldPosition;
+                    LinearY -= val;
                     Velocity.Y = 0;
                     IsFalling = false;
                     if (offset.Y > 0) IsOnGround = true;
-                    while (!CollidesWithTerrain)
-                    {
-                        LinearY += offset.Y < 0 ? -specific : specific;
-                        Hitbox.Position = WorldPosition;
-                    }
-                    while (CollidesWithTerrain)
-                    {
-                        LinearY -= offset.Y < 0 ? -specific : specific;
-                        Hitbox.Position = WorldPosition;
-                    }
+                    var normal = offset.Y < 0 ? -specific : specific;
+                    while (!CollidesWithTerrain) LinearY += normal;
+                    while (CollidesWithTerrain) LinearY -= normal;
+                    break;
                 }
+                offset.Y -= val;
             }
         }
     }

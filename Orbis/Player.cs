@@ -46,14 +46,14 @@ namespace Orbis
         /// </summary>
         public byte Slot;
 
-        public const float Gravity = 720, MaxYVel = 720, MaxXVel = 1200;
+        public const float Gravity = 720, MaxYVel = 840, MaxXVel = 1200;
         public byte Jumps;
         public float MovementSpeed { get; private set; }
         public float MovementResistance { get; private set; }
         public Vector2 Scale;
-        public static Texture2D PlayerTexture => Game.PlayerTexture;
+        private static Texture2D PlayerTexture => Game.PlayerTexture;
 
-        public int TileX, TileY, LastTileX, LastTileY;
+        public int LastTileX, LastTileY;
         public sbyte Direction;
 
         /// <summary>
@@ -72,7 +72,6 @@ namespace Orbis
         public new void Update(GameTime time)
         {
             base.Update(time);
-            UpdateTilePos();
             MovementResistance = Tiles[TileX, (TileY + 2)].MovementResistance;
             if (LastPosition != LinearPosition)
             {
@@ -96,9 +95,10 @@ namespace Orbis
                 if (Keyboard.Holding(Keyboard.Keys.D)) Velocity.X = MovementSpeed;
                 if (Settings.IsDebugMode)
                 {
-                    var spd = (Keyboard.HoldingShift() ? 10 : 5);
-                    if (Keyboard.Holding(Keyboard.Keys.Left)) LinearX -= spd;
-                    if (Keyboard.Holding(Keyboard.Keys.Right)) LinearX += spd;
+                    var spd = (Keyboard.HoldingShift() ? 25 : 10);
+                    if (Keyboard.Holding(Keyboard.Keys.Up)) { LinearY -= spd; Velocity.Y = 0; }
+                    if (Keyboard.Holding(Keyboard.Keys.Left)) { LinearX -= spd; Velocity.X = 0; }
+                    if (Keyboard.Holding(Keyboard.Keys.Right)) { LinearX += spd; Velocity.X = 0; }
                 }
             }
             if (Network.IsClient) while (Timers.Tick("posSync")) new Packet((byte)Packets.Position, LinearPosition, Velocity).Send(NetDeliveryMethod.UnreliableSequenced, 1);
@@ -110,7 +110,6 @@ namespace Orbis
         }
 
         public void Spawn(Point spawn) { LinearPosition = new Vector2(((spawn.X * Tile.Size) + (Tile.Size / 2f)), ((spawn.Y * Tile.Size) + (Tile.Size / 2f))); }
-        public void UpdateTilePos() { TileX = (int)(LinearPosition.X / Tile.Size); TileY = (int)(LinearPosition.Y / Tile.Size); }
         public void UpdateLastTilePos() { LastTileX = TileX; LastTileY = TileY; }
         public float VolumeFromDistance(Vector2 position, float fade, float max) { return LinearPosition.VolumeFromDistance(position, fade, max); }
         public static Player Get(NetConnection connection) { return Players.FirstOrDefault(t => (t != null) && (t.Connection == connection)); }

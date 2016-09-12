@@ -119,6 +119,7 @@ namespace Orbis.World
 
         public static byte GenerateStyle(ref Tile[,] tiles, int x, int y)
         {
+            if ((x <= 0) || (y <= 0) || (x >= tiles.GetLength(0) - 1) || (y >= (tiles.GetLength(1) - 1))) return 0;
             var tile = tiles[x, y];
             byte style = 0;
             if (tiles[x, y - 1].BorderJoins(tile)) style++;

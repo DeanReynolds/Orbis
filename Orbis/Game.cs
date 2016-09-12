@@ -386,6 +386,7 @@ namespace Orbis
                         Screen.DrawString(("CamTiles: " + CamTilesMinX + "," + CamTilesMinY + " - " + CamTilesMaxX + "," + CamTilesMaxY), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale * 100) * 1))), Color.White, Color.Black, new Vector2(DebugTextScale));
                         Screen.DrawString(("LightTiles: " + LightTilesMinX + "," + LightTilesMinY + " - " + LightTilesMaxX + "," + LightTilesMaxY), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale * 100) * 2))), Color.White, Color.Black, new Vector2(DebugTextScale));
                         Screen.DrawString(("IsFalling: " + Self.IsFalling + " - IsOnGround: " + Self.IsOnGround), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale * 100) * 3))), Color.White, Color.Black, new Vector2(DebugTextScale));
+                        Screen.DrawString(("TilePos: " + Self.TileX + "," + Self.TileY + " - Velocity: " + Self.Velocity.X + "," + Self.Velocity.Y), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale * 100) * 4))), Color.White, Color.Black, new Vector2(DebugTextScale));
                         Screen.Cease();
                     }
                     break;

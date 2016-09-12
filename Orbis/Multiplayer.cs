@@ -149,7 +149,6 @@ namespace Orbis
                         {
                             sender.LinearPosition = message.ReadVector2();
                             sender.Velocity = message.ReadVector2();
-                            sender.UpdateTilePos();
                             //while (sender.TileX < sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2) - 1), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX--; data.SendTo(sender.Connection); }
                             //while (sender.TileX > sender.LastTileX) { var data = new Packet((byte)Packets.ColumnOfTiles); WriteColumnOfTiles(ref Game.Tiles, ref data, (sender.LastTileX + ((ChunkWidth / 2))), (sender.LastTileY - (ChunkHeight / 2)), ChunkHeight); sender.LastTileX++; data.SendTo(sender.Connection); }
                             //while (sender.TileY < sender.LastTileY) { var data = new Packet((byte)Packets.RowOfTiles); WriteRowOfTiles(ref Game.Tiles, ref data, (sender.LastTileX - (ChunkWidth / 2)), (sender.LastTileY - (ChunkHeight / 2) - 1), ChunkWidth); sender.LastTileY--; data.SendTo(sender.Connection); }
