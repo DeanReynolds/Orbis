@@ -36,8 +36,7 @@ namespace Orbis
         /// The friendly name of the player.
         /// </summary>
         public string Name;
-        
-        private Vector2 _lastPWorldosition;
+        private Vector2 _lastWorldPosition;
         /// <summary>
         /// The player slot that this player occupies in the current server.
         /// </summary>
@@ -70,11 +69,11 @@ namespace Orbis
         {
             base.Update(time);
             MovementResistance = Tiles[TileX, (TileY + 2)].MovementResistance;
-            if (_lastPWorldosition != LinearPosition)
+            if (_lastWorldPosition != WorldPosition)
             {
-                if (LinearPosition.X > _lastPWorldosition.X) Direction = 1;
-                else if (LinearPosition.X < _lastPWorldosition.X) Direction = -1;
-                _lastPWorldosition = LinearPosition;
+                if (WorldPosition.X > _lastWorldPosition.X) Direction = 1;
+                else if (WorldPosition.X < _lastWorldPosition.X) Direction = -1;
+                _lastWorldPosition = WorldPosition;
             }
             var movementResistance = (MovementResistance * (float)time.ElapsedGameTime.TotalSeconds);
             if (Velocity.X > 0) Velocity.X = MathHelper.Clamp((Velocity.X - movementResistance), 0, MaxXVel);
