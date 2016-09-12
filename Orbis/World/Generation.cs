@@ -36,14 +36,13 @@ namespace Orbis.World
                 {
                     var dif = Globe.Random(-1, 1);
                     if (surfaceLength == 1)
-                        switch (dif)
+                        if (dif == 1)
                         {
-                            case 1:
-                                if ((x > 0) && !tiles[x - 1, surface].Fore.Matches(Tile.Tiles.Dirt)) dif = Globe.Pick(-1, 0);
-                                break;
-                            case -1:
-                                if ((x > 0) && tiles[x - 1, surface].Fore.Matches(Tile.Tiles.Dirt)) dif = Globe.Pick(0, 1);
-                                break;
+                            if ((x > 0) && !tiles[x - 1, surface].Fore.Matches(Tile.Tiles.Dirt)) dif = Globe.Pick(-1, 0);
+                        }
+                        else if (dif == -1)
+                        {
+                            if ((x > 0) && tiles[x - 1, surface].Fore.Matches(Tile.Tiles.Dirt)) dif = Globe.Pick(0, 1);
                         }
                     if (dif != 0)
                     {
@@ -127,108 +126,38 @@ namespace Orbis.World
             if (tiles[x, y + 1].BorderJoins(tile)) style += 4;
             if (tiles[x - 1, y].BorderJoins(tile)) style += 8;
             if (tiles[x + 1, y - 1].BorderJoins(tile))
-                switch (style)
-                {
-                    case 0:
-                        style = 16;
-                        break;
-                    case 4:
-                        style = 17;
-                        break;
-                    case 8:
-                        style = 18;
-                        break;
-                    case 12:
-                        style = 19;
-                        break;
-                }
+                if (style == 0) { style = 16; }
+                else if (style == 4) { style = 17; }
+                else if (style == 8) { style = 18; }
+                else if (style == 12) { style = 19; }
             if (tiles[x + 1, y + 1].BorderJoins(tile))
-                switch (style)
-                {
-                    case 0:
-                        style = 20;
-                        break;
-                    case 1:
-                        style = 21;
-                        break;
-                    case 8:
-                        style = 22;
-                        break;
-                    case 9:
-                        style = 23;
-                        break;
-                    case 16:
-                        style = 32;
-                        break;
-                    case 18:
-                        style = 33;
-                        break;
-                }
+                if (style == 0) { style = 20; }
+                else if (style == 1) { style = 21; }
+                else if (style == 8) { style = 22; }
+                else if (style == 9) { style = 23; }
+                else if (style == 16) { style = 32; }
+                else if (style == 18) { style = 33; }
             if (tiles[x - 1, y + 1].BorderJoins(tile))
-                switch (style)
-                {
-                    case 0:
-                        style = 24;
-                        break;
-                    case 1:
-                        style = 25;
-                        break;
-                    case 2:
-                        style = 26;
-                        break;
-                    case 3:
-                        style = 27;
-                        break;
-                    case 16:
-                        style = 34;
-                        break;
-                    case 20:
-                        style = 42;
-                        break;
-                    case 21:
-                        style = 44;
-                        break;
-                    case 32:
-                        style = 35;
-                        break;
-                }
+                if (style == 0) { style = 24; }
+                else if (style == 1) { style = 25; }
+                else if (style == 2) { style = 26; }
+                else if (style == 3) { style = 27; }
+                else if (style == 16) { style = 34; }
+                else if (style == 20) { style = 42; }
+                else if (style == 21) { style = 44; }
+                else if (style == 32) { style = 35; }
             if (tiles[x - 1, y - 1].BorderJoins(tile))
-                switch (style)
-                {
-                    case 0:
-                        style = 28;
-                        break;
-                    case 2:
-                        style = 29;
-                        break;
-                    case 4:
-                        style = 30;
-                        break;
-                    case 6:
-                        style = 31;
-                        break;
-                    case 16:
-                        style = 37;
-                        break;
-                    case 17:
-                        style = 38;
-                        break;
-                    case 20:
-                        style = 40;
-                        break;
-                    case 24:
-                        style = 39;
-                        break;
-                    case 26:
-                        style = 41;
-                        break;
-                    case 35:
-                        style = 43;
-                        break;
-                    case 42:
-                        style = 36;
-                        break;
-                }
+                if (style == 0) { style = 28; }
+                else if (style == 2) { style = 29; }
+                else if (style == 4) { style = 30; }
+                else if (style == 6) { style = 31; }
+                else if (style == 16) { style = 37; }
+                else if (style == 17) { style = 38; }
+                else if (style == 20) { style = 40; }
+                else if (style == 24) { style = 39; }
+                else if (style == 26) { style = 41; }
+                else if (style == 35) { style = 43; }
+                else if (style == 42) { style = 36; }
             return style;
         }
     }
