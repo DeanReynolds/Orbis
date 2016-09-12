@@ -36,11 +36,8 @@ namespace Orbis
         /// The friendly name of the player.
         /// </summary>
         public string Name;
-
-        /// <summary>
-        /// The location of the player in the world.
-        /// </summary>
-        private Vector2 LastPosition;
+        
+        private Vector2 _lastPWorldosition;
         /// <summary>
         /// The player slot that this player occupies in the current server.
         /// </summary>
@@ -73,11 +70,11 @@ namespace Orbis
         {
             base.Update(time);
             MovementResistance = Tiles[TileX, (TileY + 2)].MovementResistance;
-            if (LastPosition != LinearPosition)
+            if (_lastPWorldosition != LinearPosition)
             {
-                if (LinearPosition.X > LastPosition.X) Direction = 1;
-                else if (LinearPosition.X < LastPosition.X) Direction = -1;
-                LastPosition = LinearPosition;
+                if (LinearPosition.X > _lastPWorldosition.X) Direction = 1;
+                else if (LinearPosition.X < _lastPWorldosition.X) Direction = -1;
+                _lastPWorldosition = LinearPosition;
             }
             var movementResistance = (MovementResistance * (float)time.ElapsedGameTime.TotalSeconds);
             if (Velocity.X > 0) Velocity.X = MathHelper.Clamp((Velocity.X - movementResistance), 0, MaxXVel);
@@ -87,7 +84,7 @@ namespace Orbis
         public void SelfUpdate(GameTime time)
         {
             if (IsOnGround) Jumps = 0;
-            if (Tiles[TileX, TileY + 2].Solid) MovementSpeed = Tiles[TileX, TileY + 2].MovementSpeed;
+            if (Tiles[TileX, TileY + 2].Solid || (MovementSpeed == 0)) MovementSpeed = Tiles[TileX, TileY + 2].MovementSpeed;
             if (Globe.IsActive)
             {
                 if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) { Velocity.Y = -300; Jumps++; }

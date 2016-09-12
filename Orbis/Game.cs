@@ -386,7 +386,8 @@ namespace Orbis
                     Screen.DrawString(("LightTiles: " + LightTilesMinX + "," + LightTilesMinY + " - " + LightTilesMaxX + "," + LightTilesMaxY), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale*100)*2))), Color.White, Color.Black,
                         new Vector2(DebugTextScale));
                     Screen.DrawString(("IsFalling: " + Self.IsFalling + " - IsOnGround: " + Self.IsOnGround), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale*100)*3))), Color.White, Color.Black, new Vector2(DebugTextScale));
-                    Screen.DrawString(("TilePos: " + Self.TileX + "," + Self.TileY + " - Velocity: " + Self.Velocity.X + "," + Self.Velocity.Y), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale*100)*4))), Color.White, Color.Black,
+                    Screen.DrawString(("TilePos: " + Self.TileX + "," + Self.TileY + " - MoveSpeed: " + Self.MovementSpeed + " - MoveResistance: " + Self.MovementResistance +
+                        " - Velocity: " + Math.Round(Self.Velocity.X, 1) + "," + Math.Round(Self.Velocity.Y, 1)), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale*100)*4))), Color.White, Color.Black,
                         new Vector2(DebugTextScale));
                     Screen.Cease();
                 }
@@ -479,7 +480,7 @@ namespace Orbis
             {
                 for (var y = CamTilesMinY; y <= CamTilesMaxY; y++)
                 {
-                    Screen.Draw(LightPixel, new Rectangle(j, k, 1, 1), new Color(255, 255, 255, 255 - Math.Min((ushort) 255, Tiles[x, y].Light)));
+                    if (Tiles[x, y].Light < byte.MaxValue) Screen.Draw(LightPixel, new Rectangle(j, k, 1, 1), new Color(255, 255, 255, 255 - Math.Min((ushort) 255, Tiles[x, y].Light)));
                     k++;
                 }
                 j++;
