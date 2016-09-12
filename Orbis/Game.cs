@@ -57,7 +57,7 @@ namespace Orbis
         public const int ChunkWidth = 160, ChunkHeight = 120, LightingUpdateBuffer = 16;
 
 
-        public const float CameraZoom = 2f, ZoomRate = .1f, CursorOpacitySpeed = 1.2f, CursorOpacityMin = .25f, CursorOpacityMax = .75f;
+        public const float CameraZoom = 2f, ZoomRate = .1f, CursorOpacitySpeed = 1.2f, CursorOpacityMin = .25f, CursorOpacityMax = .75f, DebugTextScale = .25f;
 
 
         public static int MouseTileX, MouseTileY;
@@ -379,12 +379,15 @@ namespace Orbis
                     Screen.Setup(SpriteSortMode.Deferred, Multiply, Camera.View(Camera.Samplers.Point));
                     Screen.Draw(Lighting, new Rectangle(CamTilesMinX*Tile.Size, CamTilesMinY*Tile.Size, Lighting.Width*Tile.Size, Lighting.Height*Tile.Size));
                     Screen.Cease();
-                    Screen.Setup();
-                    Screen.DrawString("Zoom: " + Camera.Zoom, Font.Load("Consolas"), new Vector2(2), Color.White, Color.Black, new Vector2(.35f));
-                    Screen.DrawString(("IsFalling: " + Self.IsFalling + " - IsOnGround: " + Self.IsOnGround), Font.Load("Consolas"), new Vector2(0, 37), Color.White, Color.Black, new Vector2(.35f));
-                    //Screen.DrawString(("CamTiles: " + CamTilesMinX + "," + CamTilesMinY + " - " + CamTilesMaxX + "," + CamTilesMaxY), Font.Load("Consolas"), new Vector2(0, 37), Color.White, Color.Black, new Vector2(.35f));
-                    //Screen.DrawString(("LightTiles: " + LightTilesMinX + "," + LightTilesMinY + " - " + LightTilesMaxX + "," + LightTilesMaxY), Font.Load("Consolas"), new Vector2(0, 72), Color.White, Color.Black, new Vector2(.35f));
-                    Screen.Cease();
+                    if (Settings.IsDebugMode)
+                    {
+                        Screen.Setup();
+                        Screen.DrawString("Zoom: " + Camera.Zoom, Font.Load("Consolas"), new Vector2(2), Color.White, Color.Black, new Vector2(DebugTextScale));
+                        Screen.DrawString(("CamTiles: " + CamTilesMinX + "," + CamTilesMinY + " - " + CamTilesMaxX + "," + CamTilesMaxY), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale * 100) * 1))), Color.White, Color.Black, new Vector2(DebugTextScale));
+                        Screen.DrawString(("LightTiles: " + LightTilesMinX + "," + LightTilesMinY + " - " + LightTilesMaxX + "," + LightTilesMaxY), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale * 100) * 2))), Color.White, Color.Black, new Vector2(DebugTextScale));
+                        Screen.DrawString(("IsFalling: " + Self.IsFalling + " - IsOnGround: " + Self.IsOnGround), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale * 100) * 3))), Color.White, Color.Black, new Vector2(DebugTextScale));
+                        Screen.Cease();
+                    }
                     break;
                     #endregion
             }
