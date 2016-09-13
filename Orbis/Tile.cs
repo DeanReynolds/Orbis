@@ -1,10 +1,13 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 using SharpXNA;
 
-namespace Orbis.World
+namespace Orbis
 {
     public struct Tile
     {
+        private static Dictionary<string, Item> Items => Game.Items;
+
         public Tiles Fore { get { return (Tiles)ForeID; } set { ForeID = (byte)value; } }
         public Tiles Back { get { return (Tiles)BackID; } set { BackID = (byte)value; } }
         public enum Tiles { Air, Black, Dirt, Stone, Log, Leaves, Torch }
@@ -12,7 +15,7 @@ namespace Orbis.World
 
         public const int Size = 8;
 
-        public byte Style;
+        public byte ForeStyle, BackStyle;
         public ushort Light;
 
         public bool Empty => !((ForeID > 0) || (BackID > 0));
@@ -29,6 +32,23 @@ namespace Orbis.World
         public bool HasBorder => !Fore.Matches(Tiles.Log);
         public bool BorderJoins(Tile tile) { return tile.ForeID != ForeID; }
         public bool EitherForeIs(Tile tile, params Tiles[] types) { return Fore.Matches(types) && tile.Fore.Matches(types); }
+
+        public Item ForeItem
+        {
+            get
+            {
+                if (Fore.Matches(Tiles.Dirt, Tiles.Stone, Tiles.Torch)) return Items[Fore.ToString()].Clone();
+                return null;
+            }
+        }
+        public Item BackItem
+        {
+            get
+            {
+                if (Back.Matches(Tiles.Dirt, Tiles.Stone, Tiles.Torch)) return Items[Back.ToString()].Clone();
+                return null;
+            }
+        }
 
         public const int TextureSize = 8, TilesetHeight = 32;
         public static Rectangle Source(int tileID, byte style) { return new Rectangle((((4 + (tileID / TilesetHeight) * 4) + (style % 4)) * TextureSize), (((tileID - 1) % TilesetHeight) * TextureSize), TextureSize, TextureSize); }
