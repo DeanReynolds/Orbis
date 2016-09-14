@@ -2,9 +2,11 @@
 using SharpXNA;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using SharpXNA.Input;
 
 namespace Orbis
 {
@@ -13,10 +15,10 @@ namespace Orbis
 
     public static class Multiplayer
     {
-        public enum Packets { Connection, Disconnection, Initial, Position, PlayerData, WorldData, TileData, FinalData, RectangleOfTiles, RowOfTiles, ColumnOfTiles,
+        public enum Packets { Connection, Disconnection, Initial, PlayerInput, PlayerData, WorldData, TileData, FinalData, RectangleOfTiles, RowOfTiles, ColumnOfTiles,
             PlayerAddItem, PlayerSetItem, PlayerSetInv, PlayerRemoveItem, PlayerDropItem }
 
-        private const int ChunkWidth = 10, ChunkHeight = 10, ChunkBufferWidth = 16, ChunkBufferHeight = 12;
+        public const int ChunkWidth = 10, ChunkHeight = 10, ChunkBufferWidth = 16, ChunkBufferHeight = 12;
 
         private static Frames Frame { get { return Game.Frame; } set { Game.Frame = value; } }
         private static Player Self{ get { return Game.Self; } set { Game.Self = value; } }
@@ -31,7 +33,6 @@ namespace Orbis
             Players = new Player[256];
             Self = Player.Add(new Player(playerName));
             Network.StartHosting(6121, Players.Length);
-            Timers.Add("posSync", 1/20d);
         }
         public static void QuitLobby()
         {
@@ -46,7 +47,7 @@ namespace Orbis
             var clientVersion = message.ReadUInt64();
             if (clientVersion == Globe.Version)
             {
-                var connector = Player.Add(new Player(message.ReadString()) {Connection = message.SenderConnection,IsVelocitLocked = true});
+                var connector = Player.Add(new Player(message.ReadString()) {Connection = message.SenderConnection,IsVelocityLocked = true});
                 if (connector != null)
                 {
                     var data = new Packet((byte) Packets.Initial, (byte)(Players.Length - 1), connector.Slot);
@@ -91,10 +92,10 @@ namespace Orbis
             {
                 Players = new Player[message.ReadByte() + 1];
                 Self = Player.Set(message.ReadByte(), new Player(Settings.Get("Name")));
-                Timers.Add("posSync", 1/20d);
                 Camera = new Camera() {Zoom = Game.CameraZoom};
                 Game.UpdateResCamStuff();
                 Frame = Frames.LoadGame;
+                new Packet((byte) Packets.TileData).Send();
                 var invData = new Packet((byte) Packets.PlayerData);
                 for (var i = 0; i < Inventory.PlayerInvSize; i++)
                 {
@@ -102,7 +103,6 @@ namespace Orbis
                     else invData.Add(false);
                 }
                 invData.Send();
-                new Packet((byte) Packets.TileData).Send();
             }
             else if (packet == Packets.PlayerData)
             {
@@ -120,10 +120,9 @@ namespace Orbis
                     invData.Send(message.SenderConnection);
                     var playerData = new Packet((byte) packet);
                     foreach (var t in Players)
-                    {
                         if (!t.Matches(null, sender))
                         {
-                            playerData.Add(true, t.Name);
+                            playerData.Add(true, t.Name, t.LinearPosition, t.Velocity, (byte)t.LastInput);
                             for (var i = 0; i < Inventory.PlayerInvSize; i++)
                             {
                                 if (t.GetItem(i) != null) playerData.Add(true, t.GetItem(i).Key, t.GetItem(i).Stack);
@@ -131,14 +130,17 @@ namespace Orbis
                             }
                         }
                         else playerData.Add(false);
-                    }
                     playerData.SendTo(message.SenderConnection);
+                    var finalData = new Packet((byte) Packets.FinalData);
+                    finalData.SendTo(message.SenderConnection);
                 }
                 else
                     for (var i = 0; i < Players.Length; i++)
                         if (message.ReadBoolean())
                         {
-                            Players[i] = Player.Set((byte) i, new Player(message.ReadString())); 
+                            Players[i] = Player.Set((byte) i, new Player(message.ReadString()) {LinearPosition = message.ReadVector2(), Velocity = message.ReadVector2(), LastInput = (Player.Inputs) message.ReadByte()});
+                            if (Players[i].LastInput.HasFlag(Player.Inputs.DirLeft)) Players[i].Direction = -1;
+                            else if (Players[i].LastInput.HasFlag(Player.Inputs.DirRight)) Players[i].Direction = 1;
                             for (var j = 0; j < Inventory.PlayerInvSize; j++) if (message.ReadBoolean()) Players[i].SetItem(j, Items[message.ReadString()].Clone(message.ReadInt32()), false);
                         }
             }
@@ -165,9 +167,7 @@ namespace Orbis
                     sender.Spawn(World.Spawn);
                     sender.LastTileX = World.Spawn.X;
                     sender.LastTileY = World.Spawn.Y;
-                    sender.IsVelocitLocked = false;
-                    var finalData = new Packet((byte) Packets.FinalData);
-                    finalData.SendTo(message.SenderConnection);
+                    sender.IsVelocityLocked = false;
                 }
             }
             else if (packet == Packets.FinalData)
@@ -206,8 +206,8 @@ namespace Orbis
                 else sender.RemoveItem(Items[message.ReadString()].Clone(message.ReadInt32()));
             }
             #endregion
-            #region Position
-            else if (packet == Packets.Position)
+            #region PlayerInput
+            else if (packet == Packets.PlayerInput)
             {
                 if (Network.IsServer)
                 {
@@ -215,49 +215,20 @@ namespace Orbis
                     if (sender == null) return;
                     sender.LinearPosition = message.ReadVector2();
                     sender.Velocity = message.ReadVector2();
-                    const int chunkWidthBuffered = (ChunkWidth*ChunkBufferWidth);
-                    const int chunkHeightBuffered = (ChunkHeight*ChunkBufferHeight);
-                    while (sender.TileX < (sender.LastTileX - ChunkWidth))
-                    {
-                        var data = new Packet((byte)Packets.RectangleOfTiles);
-                        WriteRectangleOfTiles(ref World.Tiles, ref data, (sender.LastTileX - chunkWidthBuffered - ChunkWidth), (sender.LastTileY - chunkHeightBuffered), ChunkWidth, (chunkHeightBuffered * 2));
-                        sender.LastTileX -= ChunkWidth;
-                        data.SendTo(sender.Connection);
-                    }
-                    while (sender.TileX > (sender.LastTileX + ChunkWidth))
-                    {
-                        var data = new Packet((byte)Packets.RectangleOfTiles);
-                        WriteRectangleOfTiles(ref World.Tiles, ref data, (sender.LastTileX + chunkWidthBuffered), (sender.LastTileY - chunkHeightBuffered), ChunkWidth, (chunkHeightBuffered * 2));
-                        sender.LastTileX += ChunkWidth;
-                        data.SendTo(sender.Connection);
-                    }
-                    while (sender.TileY < (sender.LastTileY - ChunkHeight))
-                    {
-                        var data = new Packet((byte)Packets.RectangleOfTiles);
-                        WriteRectangleOfTiles(ref World.Tiles, ref data, (sender.LastTileX - chunkWidthBuffered), (sender.LastTileY - chunkHeightBuffered - ChunkHeight), (chunkWidthBuffered * 2), ChunkHeight);
-                        sender.LastTileY -= ChunkHeight;
-                        data.SendTo(sender.Connection);
-                    }
-                    while (sender.TileY > (sender.LastTileY + ChunkHeight))
-                    {
-                        var data = new Packet((byte)Packets.RectangleOfTiles);
-                        WriteRectangleOfTiles(ref World.Tiles, ref data, (sender.LastTileX - chunkWidthBuffered), (sender.LastTileY + chunkHeightBuffered), (chunkWidthBuffered * 2), ChunkHeight);
-                        sender.LastTileY += ChunkHeight;
-                        data.SendTo(sender.Connection);
-                    }
+                    sender.LastInput = (Player.Inputs)message.ReadByte();
+                    if (sender.LastInput.HasFlag(Player.Inputs.DirLeft)) sender.Direction = -1;
+                    else if (sender.LastInput.HasFlag(Player.Inputs.DirRight)) sender.Direction = 1;
+                    new Packet((byte) packet, sender.Slot, sender.LinearPosition, sender.Velocity, (byte) sender.LastInput).Send(message.SenderConnection);
                 }
                 else
                 {
-                    var count = (message.LengthBytes - 1)/17;
-                    for (var i = 0; i < count; i++)
-                    {
-                        var sender = Players[message.ReadByte()];
-                        if (sender != null)
-                        {
-                            sender.LinearPosition = message.ReadVector2();
-                            sender.Velocity = message.ReadVector2();
-                        }
-                    }
+                    var sender = Players[message.ReadByte()];
+                    if (sender == null) return;
+                    sender.LinearPosition = message.ReadVector2();
+                    sender.Velocity = message.ReadVector2();
+                    sender.LastInput = (Player.Inputs)message.ReadByte();
+                    if (sender.LastInput.HasFlag(Player.Inputs.DirLeft)) sender.Direction = -1;
+                    else if (sender.LastInput.HasFlag(Player.Inputs.DirRight)) sender.Direction = 1;
                 }
             }
             #endregion

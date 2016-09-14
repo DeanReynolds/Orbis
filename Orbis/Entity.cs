@@ -16,17 +16,19 @@ namespace Orbis
             get { return _linearPosition; }
             set
             {
-                value.X = MathHelper.Clamp(value.X, (Tile.Size + (PlayerTexture.Width / 2)), (((World.Tiles.GetLength(0) - 1) * Tile.Size) - (PlayerTexture.Width / 2)));
-                value.Y = MathHelper.Clamp(value.Y, (Tile.Size + (PlayerTexture.Height / 2)), (((World.Tiles.GetLength(1) - 1) * Tile.Size) - (PlayerTexture.Height / 2)));
+                float maxWidth = float.MaxValue, maxHeight = float.MaxValue;
+                if (World != null) { maxWidth = ((World.Width - 1)*Tile.Size); maxHeight = ((World.Height - 1)*Tile.Size); }
+                value.X = MathHelper.Clamp(value.X, (Tile.Size + (PlayerTexture.Width/2f)), (maxWidth - (PlayerTexture.Width/2f)));
+                value.Y = MathHelper.Clamp(value.Y, (Tile.Size + (PlayerTexture.Height/2f)), (maxHeight - (PlayerTexture.Height/2f)));
                 _linearPosition = value;
-                _worldPosition = new Vector2((int) Math.Round(value.X), (int) Math.Round(value.Y));
+                _worldPosition = new Vector2((int) Math.Round(_linearPosition.X), (int) Math.Round(_linearPosition.Y));
                 Hitbox.Position = _worldPosition;
-                TileX = (int)Math.Floor(value.X / Tile.Size);
-                TileY = (int)Math.Floor(value.Y / Tile.Size);
+                TileX = (int) Math.Floor(_worldPosition.X/Tile.Size);
+                TileY = (int) Math.Floor(_worldPosition.Y/Tile.Size);
             }
         }
 
-        private Vector2 _worldPosition;
+        protected Vector2 _worldPosition;
         public Vector2 WorldPosition => _worldPosition;
 
         public float LinearX
@@ -71,9 +73,10 @@ namespace Orbis
         /// <param name="collisionOptions">The flags for collision detection when moving.</param>
         public Entity(Polygon hitBox, CollosionOptions collisionOptions) { Hitbox = hitBox; _collisionOptions = collisionOptions; }
 
-        public bool IsFalling, IsOnGround, IsAffectedByGravity, IsVelocitLocked;
+        public bool IsFalling, IsOnGround, IsAffectedByGravity, IsVelocityLocked;
         public Vector2 Velocity;
         public const float Gravity = 720, MaxYVel = 840, MaxXVel = 1200;
+        public sbyte Direction;
         public float MovementResistance { get; private set; }
 
         private Polygon _hitBox;
@@ -89,10 +92,10 @@ namespace Orbis
             }
         }
 
-        public void Update(GameTime time)
+        public virtual void Update(GameTime time)
         {
             Move(Velocity*(float) time.ElapsedGameTime.TotalSeconds);
-            if (!IsVelocitLocked)
+            if (!IsVelocityLocked)
             {
                 if (_collisionOptions.HasFlag(CollosionOptions.CollidesWithTerrain))
                 {

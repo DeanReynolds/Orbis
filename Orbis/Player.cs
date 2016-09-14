@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Lidgren.Network;
 using Microsoft.Xna.Framework;
 using SharpXNA;
@@ -27,19 +28,19 @@ namespace Orbis
         /// The friendly name of the player.
         /// </summary>
         public string Name;
-        private Vector2 _lastWorldPosition;
         /// <summary>
         /// The player slot that this player occupies in the current server.
         /// </summary>
         public byte Slot;
         
+        [Flags] public enum Inputs { None = 0, Jump = 1, MoveLeft = 2, MoveRight = 4, DirLeft = 8, DirRight = 16 }
+        public Inputs LastInput;
         public byte Jumps;
         public float MovementSpeed { get; private set; }
         private Inventory _inventory;
         private static Texture2D PlayerTexture => Game.PlayerTexture;
-
+        private Vector2 _lastWorldPosition;
         public int LastTileX, LastTileY;
-        public sbyte Direction;
 
         /// <summary>
         /// Creates a player with only a name.
@@ -60,25 +61,66 @@ namespace Orbis
             _inventory = new Inventory(Inventory.PlayerInvSize);
         }
 
-        public new void Update(GameTime time)
+        public override void Update(GameTime time)
         {
+            if (World.Tiles[TileX, TileY + 2].Solid || (MovementSpeed == 0)) MovementSpeed = World.Tiles[TileX, TileY + 2].MovementSpeed;
+            if (LastInput.HasFlag(Inputs.Jump) && (Jumps <= 0)) { Velocity.Y = -300; Jumps++; }
+            if (LastInput.HasFlag(Inputs.MoveLeft)) Velocity.X = -MovementSpeed;
+            if (LastInput.HasFlag(Inputs.MoveRight)) Velocity.X = MovementSpeed;
             base.Update(time);
-            if (_lastWorldPosition != WorldPosition)
+            if (IsOnGround) Jumps = 0;
+            #region Sync Chunks
+            if (Network.IsServer && (this != Self))
             {
-                if (WorldPosition.X > _lastWorldPosition.X) Direction = 1;
-                else if (WorldPosition.X < _lastWorldPosition.X) Direction = -1;
-                _lastWorldPosition = WorldPosition;
+                const int chunkWidth = Multiplayer.ChunkWidth;
+                const int chunkHeight = Multiplayer.ChunkHeight;
+                const int chunkWidthBuffered = (chunkWidth*Multiplayer.ChunkBufferWidth);
+                const int chunkHeightBuffered = (chunkHeight*Multiplayer.ChunkBufferHeight);
+                while (TileX < (LastTileX - chunkWidth))
+                {
+                    var data = new Packet((byte) Packets.RectangleOfTiles);
+                    Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX - chunkWidthBuffered - chunkWidth), (LastTileY - chunkHeightBuffered), chunkWidth, (chunkHeightBuffered*2));
+                    LastTileX -= chunkWidth;
+                    data.SendTo(Connection);
+                }
+                while (TileX > (LastTileX + chunkWidth))
+                {
+                    var data = new Packet((byte) Packets.RectangleOfTiles);
+                    Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX + chunkWidthBuffered), (LastTileY - chunkHeightBuffered), chunkWidth, (chunkHeightBuffered*2));
+                    LastTileX += chunkWidth;
+                    data.SendTo(Connection);
+                }
+                while (TileY < (LastTileY - chunkHeight))
+                {
+                    var data = new Packet((byte) Packets.RectangleOfTiles);
+                    Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX - chunkWidthBuffered), (LastTileY - chunkHeightBuffered - chunkHeight), (chunkWidthBuffered*2), chunkHeight);
+                    LastTileY -= chunkHeight;
+                    data.SendTo(Connection);
+                }
+                while (TileY > (LastTileY + chunkHeight))
+                {
+                    var data = new Packet((byte) Packets.RectangleOfTiles);
+                    Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX - chunkWidthBuffered), (LastTileY + chunkHeightBuffered), (chunkWidthBuffered*2), chunkHeight);
+                    LastTileY += chunkHeight;
+                    data.SendTo(Connection);
+                }
             }
+            #endregion
         }
         public void SelfUpdate(GameTime time)
         {
-            if (IsOnGround) Jumps = 0;
-            if (World.Tiles[TileX, TileY + 2].Solid || (MovementSpeed == 0)) MovementSpeed = World.Tiles[TileX, TileY + 2].MovementSpeed;
+            if (_lastWorldPosition != _worldPosition)
+            {
+                if (_worldPosition.X > _lastWorldPosition.X) Direction = 1;
+                else if (_worldPosition.X < _lastWorldPosition.X) Direction = -1;
+                _lastWorldPosition = _worldPosition;
+            }
             if (Globe.IsActive)
             {
-                if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) { Velocity.Y = -300; Jumps++; }
-                if (Keyboard.Holding(Keyboard.Keys.A)) Velocity.X = -MovementSpeed;
-                if (Keyboard.Holding(Keyboard.Keys.D)) Velocity.X = MovementSpeed;
+                var input = Inputs.None;
+                if (Keyboard.Holding(Keyboard.Keys.W) && (Jumps <= 0)) input |= Inputs.Jump;
+                if (Keyboard.Holding(Keyboard.Keys.A)) input |= Inputs.MoveLeft;
+                if (Keyboard.Holding(Keyboard.Keys.D)) input |= Inputs.MoveRight;
                 if (Settings.IsDebugMode)
                 {
                     var spd = (Keyboard.HoldingShift() ? 25 : 10);
@@ -86,8 +128,14 @@ namespace Orbis
                     if (Keyboard.Holding(Keyboard.Keys.Left)) { LinearX -= spd; Velocity.X = 0; }
                     if (Keyboard.Holding(Keyboard.Keys.Right)) { LinearX += spd; Velocity.X = 0; }
                 }
+                if (Direction == -1) input |= Inputs.DirLeft; else if (Direction == 1) input |= Inputs.DirRight;
+                if (input != LastInput)
+                {
+                    if (Network.IsServer) new Packet((byte) Packets.PlayerInput, Slot, LinearPosition, Velocity, (byte) input).Send(NetDeliveryMethod.UnreliableSequenced, 1);
+                    else if (Network.IsClient) new Packet((byte) Packets.PlayerInput, LinearPosition, Velocity, (byte) input).Send(NetDeliveryMethod.UnreliableSequenced, 1);
+                    LastInput = input;
+                }
             }
-            if (Network.IsClient) while (Timers.Tick("posSync")) new Packet((byte)Packets.Position, LinearPosition, Velocity).Send(NetDeliveryMethod.UnreliableSequenced, 1);
         }
         public void Draw()
         {

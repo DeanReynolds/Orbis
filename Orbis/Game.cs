@@ -37,15 +37,13 @@ namespace Orbis
         public static Player[] Players;
 
         #region Menu/Connecting Variables
-        public enum MenuStates
-        {
-            UsernameEntry,
-            HostConnect,
-            IPEntry
-        }
+        public enum MenuStates { UsernameEntry, HostConnect, IPEntry }
         public static bool Quit = false;
         public static MenuStates MenuState = MenuStates.UsernameEntry;
         public static double BlinkTimer;
+        public static Vector2 CamPos;
+        public static Vector2? CamWaypoint;
+        public static float CamNorm = Globe.Pick(-1, 1);
         #endregion
         #region Game Variables
         public const int LightingUpdateBuffer = 16;
@@ -112,6 +110,13 @@ namespace Orbis
             if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
             PlayerTexture = Textures.Load("test_char.png");
             Items = LoadItems();
+            Camera = new Camera() {Zoom=CameraZoom};
+            UpdateResCamStuff();
+            World = World.Generate(600, 400);
+            CamPos = new Vector2((World.Spawn.X * Tile.Size), (World.Spawn.Y * Tile.Size));
+            Camera.Position = new Vector2((int)Math.Round(CamPos.X), (int)Math.Round(CamPos.Y));
+            UpdateCamBounds();
+            LoadGameTextures();
         }
         public static void LoadGameTextures()
         {
@@ -142,7 +147,28 @@ namespace Orbis
             #region Menu/Connecting
             if (Frame == Frames.Menu)
             {
-                if (MenuState == MenuStates.UsernameEntry)
+                if (!CamWaypoint.HasValue)
+                {
+                    var nextSurface = new Point((((int)(Camera.Position.X/Tile.Size)) + ((CamNorm > 0) ? 1 : -1)), (int)(Camera.Position.Y/Tile.Size));
+                    for (var y = 1; y < World.Height - 1; y++)
+                        if (World.Tiles[nextSurface.X, y].Solid)
+                        {
+                            nextSurface.Y = (y - 1);
+                            break;
+                        }
+                    CamWaypoint = new Vector2((nextSurface.X*Tile.Size), (nextSurface.Y*Tile.Size));
+                }
+                else
+                {
+                    Globe.Move(ref CamPos, CamWaypoint.Value, (Math.Abs(CamNorm * 32)*(float)(time.ElapsedGameTime.TotalSeconds*4)));
+                    const float camNormVel = .8f;
+                    Camera.Position = new Vector2((int)Math.Round(CamPos.X), (int)Math.Round(CamPos.Y));
+                    UpdateCamBounds();
+                    if (Vector2.Distance(CamPos, CamWaypoint.Value) <= 4) CamWaypoint = null;
+                    if (CamPos.X >= (((World.Width * Tile.Size) - (Screen.BackBufferWidth / 2f)) - (Tile.Size * 8))) { CamNorm = MathHelper.Max(-1, (CamNorm - (camNormVel * (float)time.ElapsedGameTime.TotalSeconds))); }
+                    else if (CamPos.X <= ((Screen.BackBufferWidth / 2f) + (Tile.Size * 9))) { CamNorm = MathHelper.Min(1, (CamNorm + (camNormVel * (float)time.ElapsedGameTime.TotalSeconds))); }
+                }
+                if (MenuState == MenuStates.UsernameEntry) 
                 {
                     if (IsActive)
                     {
@@ -246,16 +272,6 @@ namespace Orbis
                 }
                 UpdateCamPos();
                 UpdateCamBounds();
-                if (Network.IsServer)
-                    while (Timers.Tick("posSync"))
-                        foreach (var player in Players)
-                            if (player?.Connection != null)
-                            {
-                                var packet = new Network.Packet((byte) Multiplayer.Packets.Position);
-                                foreach (var other in
-                                    Players.Where(other => !other.Matches(null, player))) packet.Add(other.Slot, other.LinearPosition, other.Velocity);
-                                packet.SendTo(player.Connection, NetDeliveryMethod.UnreliableSequenced, 1);
-                            }
                 Network.Update();
             }
             #endregion
@@ -272,7 +288,20 @@ namespace Orbis
             #region Menu/Connecting
             if (Frame == Frames.Menu)
             {
-                GraphicsDevice.Clear(Color.WhiteSmoke);
+                GraphicsDevice.Clear(Color.CornflowerBlue);
+                Screen.Setup(SamplerState.PointClamp, Camera.View());
+                for (var x = CamTilesMinX; x <= CamTilesMaxX; x++)
+                    for (var y = CamTilesMinY; y <= CamTilesMaxY; y++)
+                    {
+                        var pos = new Vector2(x*Tile.Size, y*Tile.Size);
+                        if ((World.Tiles[x, y].BackID != 0) && World.Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, pos, Tile.Source(World.Tiles[x, y].BackID, World.Tiles[x, y].BackStyle), Color.DarkGray, SpriteEffects.None, .75f);
+                        if (World.Tiles[x, y].ForeID != 0)
+                        {
+                            Screen.Draw(TilesTexture, pos, Tile.Source(World.Tiles[x, y].ForeID, World.Tiles[x, y].ForeStyle), SpriteEffects.None, .25f);
+                            if (World.Tiles[x, y].HasBorder) Screen.Draw(TilesTexture, pos, Tile.Border(World.GenerateStyle(x, y)), SpriteEffects.None, .2f);
+                        }
+                    }
+                Screen.Cease();
                 Screen.Setup(SpriteSortMode.Deferred, SamplerState.PointClamp);
                 Screen.DrawString("Developed by Dcrew", Font.Load("calibri 30"), new Vector2(Screen.BackBufferWidth/2f, Screen.BackBufferHeight - Screen.BackBufferHeight/8f), Color.Gray*.5f, Textures.Origin.Center, Scale*.5f);
                 if (MenuState == MenuStates.UsernameEntry)
@@ -389,7 +418,7 @@ namespace Orbis
                 if (Settings.IsDebugMode)
                 {
                     Screen.Setup();
-                    Screen.DrawString("Zoom: " + Camera.Zoom, Font.Load("Consolas"), new Vector2(2), Color.White, Color.Black, new Vector2(DebugTextScale));
+                    Screen.DrawString(("Zoom: " + Camera.Zoom + " - Direction: " + Self.Direction + " - Inputs: " + Self.LastInput), Font.Load("Consolas"), new Vector2(2), Color.White, Color.Black, new Vector2(DebugTextScale));
                     Screen.DrawString(("CamTiles: " + CamTilesMinX + "," + CamTilesMinY + " - " + CamTilesMaxX + "," + CamTilesMaxY), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale*100)*1))), Color.White, Color.Black,
                         new Vector2(DebugTextScale));
                     Screen.DrawString(("LightTiles: " + LightTilesMinX + "," + LightTilesMinY + " - " + LightTilesMaxX + "," + LightTilesMaxY), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale*100)*2))), Color.White, Color.Black,
