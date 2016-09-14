@@ -15,6 +15,9 @@ namespace Orbis
 
         public const int Size = 8;
 
+        //public byte StyleID;
+        //public Styles Style { get { return (Styles) StyleID; } set { StyleID = (byte) value; } }
+        //public enum Styles { Fore0 = 1, Fore1 = 2, Fore2 = 4, Fore3 = 8, Back0 = 16, Back1 = 32, Back2 = 64, Back3 = 128 }
         public byte ForeStyle, BackStyle;
         public ushort Light;
 

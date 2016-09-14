@@ -33,8 +33,9 @@ namespace Orbis
         /// </summary>
         public byte Slot;
         
-        [Flags] public enum Inputs { None = 0, Jump = 1, MoveLeft = 2, MoveRight = 4, DirLeft = 8, DirRight = 16 }
+        [Flags] public enum Inputs { None = 0, Jump = 1, MoveLeft = 2, MoveRight = 4, DirLeft = 8, DirRight = 16, DebugMoveUp = 32, DebugMoveLeft = 64, DebugMoveRight = 128 }
         public Inputs LastInput;
+        public const float DebugMoveSpeed = 10;
         public byte Jumps;
         public float MovementSpeed { get; private set; }
         private Inventory _inventory;
@@ -67,6 +68,9 @@ namespace Orbis
             if (LastInput.HasFlag(Inputs.Jump) && (Jumps <= 0)) { Velocity.Y = -300; Jumps++; }
             if (LastInput.HasFlag(Inputs.MoveLeft)) Velocity.X = -MovementSpeed;
             if (LastInput.HasFlag(Inputs.MoveRight)) Velocity.X = MovementSpeed;
+            if (LastInput.HasFlag(Inputs.DebugMoveUp)) { LinearY -= DebugMoveSpeed; Velocity.Y = 0; }
+            if (LastInput.HasFlag(Inputs.DebugMoveLeft)) { LinearX -= DebugMoveSpeed; Velocity.X = 0; }
+            if (LastInput.HasFlag(Inputs.DebugMoveRight)) { LinearX += DebugMoveSpeed; Velocity.X = 0; }
             base.Update(time);
             if (IsOnGround) Jumps = 0;
             #region Sync Chunks
@@ -123,10 +127,9 @@ namespace Orbis
                 if (Keyboard.Holding(Keyboard.Keys.D)) input |= Inputs.MoveRight;
                 if (Settings.IsDebugMode)
                 {
-                    var spd = (Keyboard.HoldingShift() ? 25 : 10);
-                    if (Keyboard.Holding(Keyboard.Keys.Up)) { LinearY -= spd; Velocity.Y = 0; }
-                    if (Keyboard.Holding(Keyboard.Keys.Left)) { LinearX -= spd; Velocity.X = 0; }
-                    if (Keyboard.Holding(Keyboard.Keys.Right)) { LinearX += spd; Velocity.X = 0; }
+                    if (Keyboard.Holding(Keyboard.Keys.Up)) input |= Inputs.DebugMoveUp;
+                    if (Keyboard.Holding(Keyboard.Keys.Left)) input |= Inputs.DebugMoveLeft;
+                    if (Keyboard.Holding(Keyboard.Keys.Right)) input |= Inputs.DebugMoveRight;
                 }
                 if (Direction == -1) input |= Inputs.DirLeft; else if (Direction == 1) input |= Inputs.DirRight;
                 if (input != LastInput)
