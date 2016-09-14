@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
-using Lidgren.Network;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SharpXNA;
@@ -280,6 +279,8 @@ namespace Orbis
             Sound.AutoTerminate();
             base.Update(time);
         }
+
+        private static readonly List<string> bufferedStrings = new List<string>();
         protected override void Draw(GameTime time)
         {
             Performance.DrawFPS.Record(1/time.ElapsedGameTime.TotalSeconds);
@@ -404,12 +405,11 @@ namespace Orbis
                     invPos.Y += (rows*(invSlot.Height*invScale)) + 5;
                     invScale = .5f;
                     invPos.X = (Screen.BackBufferWidth - (((invSlot.Width*invScale)*itemsPerRow) + (itemsPerRow - 1)) - 5);
-                    foreach (var player in Players)
-                        if (!player.Matches(null, Self))
-                        {
-                            player.DrawInventory(invPos, itemsPerRow, invScale);
-                            invPos.Y += (rows*(invSlot.Height*invScale)) + 10;
-                        }
+                    foreach (var player in Players.Where(player => !player.Matches(null, Self)))
+                    {
+                        player.DrawInventory(invPos, itemsPerRow, invScale);
+                        invPos.Y += (rows*(invSlot.Height*invScale)) + 10;
+                    }
                 }
                 Screen.Cease();
                 Screen.Setup(SpriteSortMode.Deferred, Multiply, Camera.View());
@@ -427,6 +427,13 @@ namespace Orbis
                     Screen.DrawString(("TilePos: " + Self.TileX + "," + Self.TileY + " - MoveSpeed: " + Self.MovementSpeed + " - MoveResistance: " + Self.MovementResistance +
                         " - Velocity: " + Math.Round(Self.Velocity.X, 1) + "," + Math.Round(Self.Velocity.Y, 1)), Font.Load("Consolas"), new Vector2(2, (2 + ((DebugTextScale*100)*4))), Color.White, Color.Black,
                         new Vector2(DebugTextScale));
+                    Screen.Cease();
+                }
+                foreach (var str in bufferedStrings)
+                {
+                    //
+                    Screen.Setup();
+                    Screen.DrawString(str, Font.Load("calibri 20"), new Vector2(Screen.ViewportWidth / 2, Screen.ViewportHeight / 2), Color.White);
                     Screen.Cease();
                 }
             }
@@ -523,6 +530,15 @@ namespace Orbis
             Screen.Cease();
             Globe.GraphicsDevice.SetRenderTarget(null);
             Profiler.Stop("Draw Lighting");
+        }
+
+        /// <summary>
+        /// Adds the details of the given item to a buffer to be drawn to the screen.
+        /// </summary>
+        /// <param name="item">The string to draw.</param>
+        public static void QueueItemPickupText(Item item)
+        {
+            bufferedStrings.Add(item.Key + " (" + item.Stack + ")");
         }
     }
 }

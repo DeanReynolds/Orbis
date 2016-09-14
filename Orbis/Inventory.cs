@@ -4,7 +4,13 @@ namespace Orbis
 {
     public class Inventory
     {
-        public const int PlayerInvSize = (7*5);
+        /// <summary>
+        /// The size of the player's inventory
+        /// </summary>
+        public const int PlayerInvSize = 7 * 5;
+        /// <summary>
+        /// The items in the player's inventory.
+        /// </summary>
         private readonly Item[] _items;
 
         public Inventory(int slots) { _items = new Item[slots]; }
@@ -13,9 +19,8 @@ namespace Orbis
 
         public int Add(Item item)
         {
-            foreach (var _item in _items)
+            foreach (var _item in _items.Where(_item => (_item != null) && (_item.Key == item.Key) && (_item.Stack < _item.MaxStack)))
             {
-                if ((_item == null) || (_item.Key != item.Key) || (_item.Stack >= _item.MaxStack)) continue;
                 if (_item.Stack > _item.MaxStack)
                 {
                     _item.Stack += item.Stack;

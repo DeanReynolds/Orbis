@@ -58,29 +58,53 @@ namespace Orbis
 
         public int TileX, TileY;
 
-        private readonly CollosionOptions _collisionOptions;
-        [Flags] public enum CollosionOptions { None = 0, CollidesWithTerrain = 1 }
+        private readonly CollisionOptions _collisionOptions;
+        [Flags] public enum CollisionOptions { None = 0, CollidesWithTerrain = 1 }
 
         /// <summary>
         /// Create a new Entity.
         /// </summary>
         /// <param name="collisionOptions">The flags for collision detection when moving.</param>
-        public Entity(CollosionOptions collisionOptions) { _collisionOptions = collisionOptions; }
+        public Entity(CollisionOptions collisionOptions) { _collisionOptions = collisionOptions; }
         /// <summary>
         /// Create a new Entity.
         /// </summary>
         /// <param name="hitBox">The hitbox polygon for the entity.</param>
         /// <param name="collisionOptions">The flags for collision detection when moving.</param>
-        public Entity(Polygon hitBox, CollosionOptions collisionOptions) { Hitbox = hitBox; _collisionOptions = collisionOptions; }
+        public Entity(Polygon hitBox, CollisionOptions collisionOptions) { Hitbox = hitBox; _collisionOptions = collisionOptions; }
 
-        public bool IsFalling, IsOnGround, IsAffectedByGravity, IsVelocityLocked;
+        /// <summary>
+        /// True = The entity is moving downward. False = The entity is either on the ground or in the air (but not falling).
+        /// </summary>
+        public bool IsFalling;
+        /// <summary>
+        /// True = The entity is on top of a tile. False = The entity is in the air.
+        /// </summary>
+        public bool IsOnGround;
+        /// <summary>
+        /// Defines whether this entity is affected by the force of gravity. This is normally true.
+        /// <para>True = Gravity affects this entity. (true in most cases)</para>
+        /// <para>False = Gravity does not affect this entity. (useful for things like bullets and some particles)</para>
+        /// </summary>
+        public bool IsAffectedByGravity;
+        public bool IsVelocityLocked;
+        /// <summary>
+        /// How fast the entity is moving around in the world.
+        /// </summary>
         public Vector2 Velocity;
         public const float Gravity = 720, MaxYVel = 840, MaxXVel = 1200;
+        /// <summary>
+        /// The direction that the entity is facing. -128 is left, 128 is right.
+        /// </summary>
         public sbyte Direction;
         public float MovementResistance { get; private set; }
 
+        
         private Polygon _hitBox;
         private int _tilesWidth, _tilesHeight;
+        /// <summary>
+        /// The collision polygon for this entity.
+        /// </summary>
         public Polygon Hitbox
         {
             get { return _hitBox; }
@@ -97,7 +121,7 @@ namespace Orbis
             Move(Velocity*(float) time.ElapsedGameTime.TotalSeconds);
             if (!IsVelocityLocked)
             {
-                if (_collisionOptions.HasFlag(CollosionOptions.CollidesWithTerrain))
+                if (_collisionOptions.HasFlag(CollisionOptions.CollidesWithTerrain))
                 {
                     MovementResistance = World.Tiles[TileX, (TileY + 2)].MovementResistance;
                     var movementResistance = (MovementResistance*(float) time.ElapsedGameTime.TotalSeconds);
@@ -130,7 +154,7 @@ namespace Orbis
             {
                 var val = MathHelper.Min(MathHelper.Max(offset.X, -Tile.Size), Tile.Size);
                 LinearX += val;
-                if (_collisionOptions.HasFlag(CollosionOptions.CollidesWithTerrain) && CollidesWithTerrain)
+                if (_collisionOptions.HasFlag(CollisionOptions.CollidesWithTerrain) && CollidesWithTerrain)
                 {
                     LinearX -= val;
                     Velocity.X = 0;
@@ -147,7 +171,7 @@ namespace Orbis
                 LinearY += val;
                 IsOnGround = false;
                 if (offset.Y > 0) IsFalling = true;
-                if (_collisionOptions.HasFlag(CollosionOptions.CollidesWithTerrain) && CollidesWithTerrain)
+                if (_collisionOptions.HasFlag(CollisionOptions.CollidesWithTerrain) && CollidesWithTerrain)
                 {
                     LinearY -= val;
                     Velocity.Y = 0;

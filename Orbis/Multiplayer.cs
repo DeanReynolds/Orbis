@@ -14,7 +14,7 @@ namespace Orbis
         public enum Packets { Connection, Disconnection, Initial, PlayerInput, PlayerData, WorldData, TileData, FinalData, RectangleOfTiles, RowOfTiles, ColumnOfTiles,
             PlayerAddItem, PlayerSetItem, PlayerSetInv, PlayerRemoveItem, PlayerDropItem }
 
-        public const int ChunkWidth = 10, ChunkHeight = 10, ChunkBufferWidth = 16, ChunkBufferHeight = 12;
+        public const int ChunkWidth = 10, ChunkHeight = 10, ChunkBufferWidth = 16, ChunkBufferHeight = 12, Port = 27000;
 
         private static Frames Frame { get { return Game.Frame; } set { Game.Frame = value; } }
         private static Player Self{ get { return Game.Self; } set { Game.Self = value; } }
@@ -28,7 +28,7 @@ namespace Orbis
         {
             Players = new Player[256];
             Self = Player.Add(new Player(playerName));
-            Network.StartHosting(6121, Players.Length);
+            Network.StartHosting(Port, Players.Length);
         }
         public static void QuitLobby()
         {
