@@ -46,13 +46,13 @@ namespace Orbis
         /// Creates a player with only a name.
         /// </summary>
         /// <param name="name">The username of the player.</param>
-        public Player(string name) : base(CollosionOptions.CollidesWithTerrain) { Name = name; Load(); }
+        public Player(string name) : base(CollisionOptions.CollidesWithTerrain) { Name = name; Load(); }
         /// <summary>
         /// Creates a player with a slot and a name.
         /// </summary>
         /// <param name="slot">The slot number to place the player into.</param>
         /// <param name="name">The username of the player.</param>
-        public Player(byte slot, string name) : base(CollosionOptions.CollidesWithTerrain) { Slot = slot; Name = name; Load(); }
+        public Player(byte slot, string name) : base(CollisionOptions.CollidesWithTerrain) { Slot = slot; Name = name; Load(); }
 
         public void Load()
         {
@@ -163,12 +163,23 @@ namespace Orbis
             }
         }
 
+        /// <summary>
+        /// Gives this player an item.
+        /// </summary>
+        /// <param name="item">The item to give to the player.</param>
         public int AddItem(Item item)
         {
             if (Network.IsServer) new Packet((byte)Packets.PlayerAddItem, Slot, item.Key, item.Stack).Send(Connection);
             else if (Network.IsClient && (this == Self)) new Packet((byte)Packets.PlayerAddItem, item.Key, item.Stack).Send();
+            Game.QueueItemPickupText(item);
             return _inventory.Add(item);
         }
+        /// <summary>
+        /// Sets a specific slot of this player's inventory to a certain item.
+        /// </summary>
+        /// <param name="slot">The slot to change.</param>
+        /// <param name="item">The item to place in the slot.</param>
+        /// <param name="sync">(needs explaining)</param>
         public void SetItem(int slot, Item item, bool sync = true)
         {
             if (sync)
@@ -176,18 +187,31 @@ namespace Orbis
                 else if (Network.IsClient && (this == Self)) new Packet((byte) Packets.PlayerSetItem, slot, item.Key, item.Stack).Send();
             _inventory.Set(slot, item);
         }
+        /// <summary>
+        /// Removes an item from a specific slot.
+        /// </summary>
+        /// <param name="slot"></param>
         public void RemoveItem(int slot)
         {
             if (Network.IsServer) new Packet((byte)Packets.PlayerRemoveItem, Slot, slot).Send(Connection);
             else if (Network.IsClient && (this == Self)) new Packet((byte)Packets.PlayerRemoveItem, slot).Send();
             _inventory.Remove(slot);
         }
+        /// <summary>
+        /// Removes a specific item from this player's inventory.
+        /// </summary>
+        /// <param name="item">The item to remove (remember to set the removal amount by changing the stack size).</param>
         public void RemoveItem(Item item)
         {
             if (Network.IsServer) new Packet((byte)Packets.PlayerRemoveItem, Slot, item.Key, item.Stack).Send(Connection);
             else if (Network.IsClient && (this == Self)) new Packet((byte)Packets.PlayerRemoveItem, item.Key, item.Stack).Send();
             _inventory.Remove(item);
         }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
         public bool HasItem(Item item) => _inventory.Has(item);
         public Item GetItem(int slot) => _inventory.Get(slot);
         public void Spawn(Point spawn) { LinearPosition = new Vector2(((spawn.X * Tile.Size) + (Tile.Size / 2f)), ((spawn.Y * Tile.Size) + (Tile.Size / 2f))); }

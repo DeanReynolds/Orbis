@@ -4,7 +4,14 @@
     {
         public string Key;
 
-        public int Stack = 1, MaxStack = 1;
+        /// <summary>
+        /// The current amount of item in this stack.
+        /// </summary>
+        public int Stack = 1;
+        /// <summary>
+        /// The max stack size of this item.
+        /// </summary>
+        public int MaxStack = 1;
 
         public Tile.Tiles? Tile;
         public byte? Style;
