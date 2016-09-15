@@ -40,7 +40,7 @@ namespace Orbis
                 _linearPosition.X = value;
                 _worldPosition.X = (int) Math.Round(value);
                 Hitbox.X = _worldPosition.X;
-                TileX = (int)Math.Floor(value / Tile.Size);
+                TileX = (int)Math.Floor(_worldPosition.X / Tile.Size);
             }
         }
         public float LinearY
@@ -52,7 +52,7 @@ namespace Orbis
                 _linearPosition.Y = value;
                 _worldPosition.Y = (int) Math.Round(value);
                 Hitbox.Y = _worldPosition.Y;
-                TileY = (int)Math.Floor(value / Tile.Size);
+                TileY = (int)Math.Floor(_worldPosition.Y / Tile.Size);
             }
         }
 
@@ -152,10 +152,13 @@ namespace Orbis
             const float specific = 1;
             while (offset.X != 0)
             {
-                var val = MathHelper.Min(MathHelper.Max(offset.X, -Tile.Size), Tile.Size);
+                var val = MathHelper.Clamp(offset.X, -Tile.Size, Tile.Size);
                 LinearX += val;
                 if (_collisionOptions.HasFlag(CollisionOptions.CollidesWithTerrain) && CollidesWithTerrain)
                 {
+                    Hitbox.Y -= Tile.Size;
+                    if (CollidesWithTerrain) Hitbox.Y += Tile.Size;
+                    else { LinearY = Hitbox.Y; break; }
                     LinearX -= val;
                     Velocity.X = 0;
                     var normal = offset.X < 0 ? -specific : specific;
@@ -163,11 +166,12 @@ namespace Orbis
                     while (CollidesWithTerrain) LinearX -= normal;
                     break;
                 }
-                offset.X -= val;
+                if (offset.X > 0) offset.X = MathHelper.Max(0, (offset.X - val));
+                else offset.X = MathHelper.Min(0, (offset.X - val));
             }
             while (offset.Y != 0)
             {
-                var val = MathHelper.Min(MathHelper.Max(offset.Y, -Tile.Size), Tile.Size);
+                var val = MathHelper.Clamp(offset.Y, -Tile.Size, Tile.Size);
                 LinearY += val;
                 IsOnGround = false;
                 if (offset.Y > 0) IsFalling = true;
@@ -182,7 +186,8 @@ namespace Orbis
                     while (CollidesWithTerrain) LinearY -= normal;
                     break;
                 }
-                offset.Y -= val;
+                if (offset.Y > 0) offset.Y = MathHelper.Max(0, (offset.Y - val));
+                else offset.Y = MathHelper.Min(0, (offset.Y - val));
             }
         }
     }

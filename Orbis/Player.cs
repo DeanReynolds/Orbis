@@ -68,47 +68,47 @@ namespace Orbis
             if (LastInput.HasFlag(Inputs.Jump) && (Jumps <= 0)) { Velocity.Y = -300; Jumps++; }
             if (LastInput.HasFlag(Inputs.MoveLeft)) Velocity.X = -MovementSpeed;
             if (LastInput.HasFlag(Inputs.MoveRight)) Velocity.X = MovementSpeed;
-            if (LastInput.HasFlag(Inputs.DebugMoveUp)) { LinearY -= DebugMoveSpeed; Velocity.Y = 0; }
-            if (LastInput.HasFlag(Inputs.DebugMoveLeft)) { LinearX -= DebugMoveSpeed; Velocity.X = 0; }
-            if (LastInput.HasFlag(Inputs.DebugMoveRight)) { LinearX += DebugMoveSpeed; Velocity.X = 0; }
+            if (LastInput.HasFlag(Inputs.DebugMoveUp)) Velocity.Y = -(DebugMoveSpeed * 30);
+            if (LastInput.HasFlag(Inputs.DebugMoveLeft)) Velocity.X = -(DebugMoveSpeed * 30);
+            if (LastInput.HasFlag(Inputs.DebugMoveRight)) Velocity.X = (DebugMoveSpeed * 30);
             base.Update(time);
             if (IsOnGround) Jumps = 0;
             #region Sync Chunks
-            if (Network.IsServer && (this != Self))
-            {
-                const int chunkWidth = Multiplayer.ChunkWidth;
-                const int chunkHeight = Multiplayer.ChunkHeight;
-                const int chunkWidthBuffered = (chunkWidth*Multiplayer.ChunkBufferWidth);
-                const int chunkHeightBuffered = (chunkHeight*Multiplayer.ChunkBufferHeight);
-                while (TileX < (LastTileX - chunkWidth))
-                {
-                    var data = new Packet((byte) Packets.RectangleOfTiles);
-                    Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX - chunkWidthBuffered - chunkWidth), (LastTileY - chunkHeightBuffered), chunkWidth, (chunkHeightBuffered*2));
-                    LastTileX -= chunkWidth;
-                    data.SendTo(Connection);
-                }
-                while (TileX > (LastTileX + chunkWidth))
-                {
-                    var data = new Packet((byte) Packets.RectangleOfTiles);
-                    Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX + chunkWidthBuffered), (LastTileY - chunkHeightBuffered), chunkWidth, (chunkHeightBuffered*2));
-                    LastTileX += chunkWidth;
-                    data.SendTo(Connection);
-                }
-                while (TileY < (LastTileY - chunkHeight))
-                {
-                    var data = new Packet((byte) Packets.RectangleOfTiles);
-                    Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX - chunkWidthBuffered), (LastTileY - chunkHeightBuffered - chunkHeight), (chunkWidthBuffered*2), chunkHeight);
-                    LastTileY -= chunkHeight;
-                    data.SendTo(Connection);
-                }
-                while (TileY > (LastTileY + chunkHeight))
-                {
-                    var data = new Packet((byte) Packets.RectangleOfTiles);
-                    Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX - chunkWidthBuffered), (LastTileY + chunkHeightBuffered), (chunkWidthBuffered*2), chunkHeight);
-                    LastTileY += chunkHeight;
-                    data.SendTo(Connection);
-                }
-            }
+            //if (Network.IsServer && (this != Self))
+            //{
+            //    const int chunkWidth = Multiplayer.ChunkWidth;
+            //    const int chunkHeight = Multiplayer.ChunkHeight;
+            //    const int chunkWidthBuffered = (chunkWidth*Multiplayer.ChunkBufferWidth);
+            //    const int chunkHeightBuffered = (chunkHeight*Multiplayer.ChunkBufferHeight);
+            //    while (TileX < (LastTileX - chunkWidth))
+            //    {
+            //        var data = new Packet((byte) Packets.RectangleOfTiles);
+            //        Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX - chunkWidthBuffered - chunkWidth), (LastTileY - chunkHeightBuffered), chunkWidth, (chunkHeightBuffered*2));
+            //        LastTileX -= chunkWidth;
+            //        data.SendTo(Connection);
+            //    }
+            //    while (TileX > (LastTileX + chunkWidth))
+            //    {
+            //        var data = new Packet((byte) Packets.RectangleOfTiles);
+            //        Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX + chunkWidthBuffered), (LastTileY - chunkHeightBuffered), chunkWidth, (chunkHeightBuffered*2));
+            //        LastTileX += chunkWidth;
+            //        data.SendTo(Connection);
+            //    }
+            //    while (TileY < (LastTileY - chunkHeight))
+            //    {
+            //        var data = new Packet((byte) Packets.RectangleOfTiles);
+            //        Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX - chunkWidthBuffered), (LastTileY - chunkHeightBuffered - chunkHeight), (chunkWidthBuffered*2), chunkHeight);
+            //        LastTileY -= chunkHeight;
+            //        data.SendTo(Connection);
+            //    }
+            //    while (TileY > (LastTileY + chunkHeight))
+            //    {
+            //        var data = new Packet((byte) Packets.RectangleOfTiles);
+            //        Multiplayer.WriteRectangleOfTiles(ref World.Tiles, ref data, (LastTileX - chunkWidthBuffered), (LastTileY + chunkHeightBuffered), (chunkWidthBuffered*2), chunkHeight);
+            //        LastTileY += chunkHeight;
+            //        data.SendTo(Connection);
+            //    }
+            //}
             #endregion
         }
         public void SelfUpdate(GameTime time)
@@ -152,7 +152,7 @@ namespace Orbis
                 int x = (i%itemsPerRow), y = (i/itemsPerRow);
                 var invSlot = Textures.Load("Inventory Slot.png");
                 var pos = new Vector2((position.X + (x*(invSlot.Width * scale)) + x), (position.Y + (y*(invSlot.Height * scale)) + y));
-                Screen.Draw(invSlot, pos);
+                Screen.Draw(invSlot, pos, new Vector2(scale));
                 if (GetItem(i) != null)
                 {
                     if (GetItem(i).Tile.HasValue)
@@ -174,7 +174,16 @@ namespace Orbis
         {
             if (Network.IsServer) new Packet((byte)Packets.PlayerAddItem, Slot, item.Key, item.Stack).Send(Connection);
             else if (Network.IsClient && (this == Self)) new Packet((byte)Packets.PlayerAddItem, item.Key, item.Stack).Send();
-            Game.QueueItemPickupText(item);
+            if (this == Self) Game.QueueItemPickupText(item);
+            return _inventory.Add(item);
+        }
+        public int AddItem(string itemKey, int amount)
+        {
+            if (!Game.Items.ContainsKey(itemKey)) return amount;
+            var item = Game.Items[itemKey].Clone(amount);
+            if (Network.IsServer) new Packet((byte)Packets.PlayerAddItem, Slot, item.Key, item.Stack).Send(Connection);
+            else if (Network.IsClient && (this == Self)) new Packet((byte)Packets.PlayerAddItem, item.Key, item.Stack).Send();
+            if (this == Self) Game.QueueItemPickupText(item);
             return _inventory.Add(item);
         }
         /// <summary>
@@ -206,6 +215,14 @@ namespace Orbis
         /// <param name="item">The item to remove (remember to set the removal amount by changing the stack size).</param>
         public void RemoveItem(Item item)
         {
+            if (Network.IsServer) new Packet((byte)Packets.PlayerRemoveItem, Slot, item.Key, item.Stack).Send(Connection);
+            else if (Network.IsClient && (this == Self)) new Packet((byte)Packets.PlayerRemoveItem, item.Key, item.Stack).Send();
+            _inventory.Remove(item);
+        }
+        public void RemoveItem(string itemKey, int amount)
+        {
+            if (!Game.Items.ContainsKey(itemKey)) return;
+            var item = Game.Items[itemKey].Clone(amount);
             if (Network.IsServer) new Packet((byte)Packets.PlayerRemoveItem, Slot, item.Key, item.Stack).Send(Connection);
             else if (Network.IsClient && (this == Self)) new Packet((byte)Packets.PlayerRemoveItem, item.Key, item.Stack).Send();
             _inventory.Remove(item);

@@ -35,6 +35,8 @@ namespace Orbis
         public bool HasBorder => !Fore.Matches(Tiles.Log);
         public bool BorderJoins(Tile tile) { return tile.ForeID != ForeID; }
         public bool EitherForeIs(Tile tile, params Tiles[] types) { return Fore.Matches(types) && tile.Fore.Matches(types); }
+        public bool CanRLE(Tile tile) { return !((tile.ForeID != ForeID) || (tile.BackID != BackID) || (tile.ForeStyle != ForeStyle)); }
+        public void CopyTileTo(ref Tile tile) { tile.ForeID = ForeID; tile.BackID = BackID; tile.ForeStyle = ForeStyle; }
 
         public Item ForeItem
         {

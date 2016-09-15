@@ -1,10 +1,14 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 using SharpXNA;
 
 namespace Orbis
 {
     public class World
     {
+        private static string LoadingText { get { return Game.LoadingText; } set { Game.LoadingText = value; } }
+        private static float LoadingPercentage { get { return Game.LoadingPercentage; } set { Game.LoadingPercentage = value; } }
+
         public Tile[,] Tiles;
         public int Width => Tiles.GetLength(0);
         public int Height => Tiles.GetLength(1);
@@ -16,14 +20,17 @@ namespace Orbis
         public static World Generate(int width, int height)
         {
             var world = new World(width, height);
-            int minSurface = height / 4 - height / 10, maxSurface = height / 4 + height / 10, surface = Globe.Random(minSurface, maxSurface), surfaceLength = 0, treeSpace = width;
+            int minSurface = height/4 - height/10, maxSurface = height/4 + height/10, surface = Globe.Random(minSurface, maxSurface), surfaceLength = 0, treeSpace = width,
+                underground = (surface + Globe.Random(14, 15)), jumpNorm = Globe.Pick(-1, 1), nextJump = -1;
             for (var x = 0; x < width; x++) world.Tiles[x, 0].Fore = world.Tiles[x, height - 1].Fore = Tile.Tiles.Black;
             for (var y = 0; y < height; y++) world.Tiles[0, y].Fore = world.Tiles[width - 1, y].Fore = Tile.Tiles.Black;
+            var caves = new List<Cave>();
+            LoadingText = "Generating Terrain";
             for (var x = 1; x < width - 1; x++)
             {
                 if (x == width / 2) world.Spawn = new Point(x, surface - 3);
-                var underground = surface + Globe.Random(10, 12);
                 for (var y = surface; y < height - 1; y++)
+                {
                     if (y == surface)
                     {
                         world.Tiles[x, y].Fore = world.Tiles[x, y].Back = Tile.Tiles.Dirt;
@@ -36,21 +43,33 @@ namespace Orbis
                     }
                     else if (y < underground) { world.Tiles[x, y].Fore = world.Tiles[x, y].Back = Tile.Tiles.Dirt; }
                     else
-                    { world.Tiles[x, y].Fore = world.Tiles[x, y].Back = Tile.Tiles.Stone; }
+                    {
+                        world.Tiles[x, y].Fore = world.Tiles[x, y].Back = Tile.Tiles.Stone;
+                        if (Globe.Chance(1, (height - y))) caves.Add(new Cave(x, y, Globe.Random(60, 180), Globe.Random(3, 4)));
+                    }
+                    LoadingPercentage = ((((y + 1) + (x * (world.Height - 2))) / (float)((world.Width - 2) * (world.Height - 2))) * 100);
+                }
                 treeSpace++;
                 surfaceLength++;
+                if (nextJump > 0) nextJump--;
+                if ((nextJump >= 0) && (nextJump < 15) && (jumpNorm == 1)) underground += Globe.Pick(0, 1, 1, 2);
+                else if (underground < (surface + 15)) underground += Globe.Pick(0, 1, 1, 2);
+                else if (underground > (surface + 15)) underground -= Globe.Pick(0, 1, 1, 2);
+                else if (Globe.Chance(30)) underground += Globe.Pick(-1, 0, 0, 0, 1);
                 if (Globe.Chance(30))
                 {
                     var dif = Globe.Random(-1, 1);
-                    if (surfaceLength == 1)
-                        if (dif == 1)
+                    if (surfaceLength > 1)
+                    {
+                        if (nextJump <= 0)
                         {
-                            if ((x > 0) && !world.Tiles[x - 1, surface].Fore.Matches(Tile.Tiles.Dirt)) dif = Globe.Pick(-1, 0);
+                            dif = (Globe.Random(10, 20)*jumpNorm);
+                            if (dif != 0) { caves.Add(new Cave(x, (surface + (dif/2)), Globe.Random(85, 195), Globe.Random(2, 4), (sbyte) ((jumpNorm > 0) ? -1 : 1))); }
+                            nextJump = Globe.Random(40, 340); jumpNorm = Globe.Pick(-1, 1);
                         }
-                        else if (dif == -1)
-                        {
-                            if ((x > 0) && world.Tiles[x - 1, surface].Fore.Matches(Tile.Tiles.Dirt)) dif = Globe.Pick(0, 1);
-                        }
+                    }
+                    else if (dif == 1) { if ((x > 0) && !world.Tiles[x - 1, surface].Fore.Matches(Tile.Tiles.Dirt)) dif = Globe.Pick(-1, 0); }
+                    else if (dif == -1) { if ((x > 0) && world.Tiles[x - 1, surface].Fore.Matches(Tile.Tiles.Dirt)) dif = Globe.Pick(0, 1); }
                     if (dif != 0)
                     {
                         surface += dif;
@@ -60,6 +79,9 @@ namespace Orbis
                     }
                 }
             }
+            LoadingText = "Generating Caves";
+            for (var i = 0; i < caves.Count; i++) { world.GenerateCave(caves[i].X, caves[i].Y, caves[i].Steps, caves[i].Size, caves[i].Dir); LoadingPercentage = (((i + 1)/(float) caves.Count)*100); }
+            Game.GenDone = true;
             return world;
         }
 
@@ -121,6 +143,47 @@ namespace Orbis
                     }
                 }
         }
+        public struct Cave
+        {
+            public int X, Y, Steps, Size;
+            public sbyte Dir;
+
+            public Cave(int x, int y, int steps, int size, sbyte dir = 0)
+            {
+                X = x;
+                Y = y;
+                Steps = steps;
+                Size = size;
+                Dir = dir;
+            }
+        }
+        public void GenerateCave(int x, int y, int steps, int size, sbyte dir)
+        {
+            int j = x, k = y;
+            var dir2 = Globe.Pick(-1, 1);
+            for (var i = 0; i < steps; i++)
+            {
+                var size2 = (size + Globe.Random(-1, 1));
+                for (var l = -size2; l < size2; l++)
+                {
+                    if ((j + l) < 1) continue;
+                    if ((j + l) >= (Width - 1)) break;
+                    for (var m = -size2; m < size2; m++)
+                    {
+                        if ((k + m) < 1) break;
+                        if ((k + m) >= (Height - 1)) break;
+                        Tiles[(j + l), (k + m)].ForeID = 0;
+                    }
+                }
+                if (Globe.Chance(60))
+                {
+                    j += ((dir == 0) ? dir2 : dir);
+                    k += Globe.Random(1);
+                }
+                if (Globe.Chance(1, 200)) dir2 = Globe.Pick(-1, 1);
+            }
+        }
+
         public byte GenerateStyle(int x, int y)
         {
             if ((x <= 0) || (y <= 0) || (x >= Tiles.GetLength(0) - 1) || (y >= (Tiles.GetLength(1) - 1))) return 0;

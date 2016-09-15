@@ -40,6 +40,7 @@
     <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="BufferedString.cs" />
     <Compile Include="Entity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Game.cs" />
@@ -75,6 +76,20 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Content\Sounds\Attack.wav" />
+    <Content Include="Content\Sounds\Dead.wav" />
+    <Content Include="Content\Sounds\Explosion0.wav" />
+    <Content Include="Content\Sounds\Explosion1.wav" />
+    <Content Include="Content\Sounds\Explosion2.wav" />
+    <Content Include="Content\Sounds\Hit0.wav" />
+    <Content Include="Content\Sounds\Hit1.wav" />
+    <Content Include="Content\Sounds\Hit2.wav" />
+    <Content Include="Content\Sounds\Hit3.wav" />
+    <Content Include="Content\Sounds\Jump0.wav" />
+    <Content Include="Content\Sounds\Jump1.wav" />
+    <Content Include="Content\Sounds\Jump2.wav" />
+    <Content Include="Content\Sounds\Land.wav" />
+    <Content Include="Content\Sounds\Select.wav" />
     <Content Include="Content\Textures\Inventory Slot.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -121,6 +136,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Content\Fonts\Consolas.xnb">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Content\Sounds\Glacier.ogg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

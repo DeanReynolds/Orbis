@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.ComponentModel.Design;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
@@ -54,21 +56,24 @@ namespace Orbis
         public static Texture2D TilesTexture, LightPixel, LightTile, PlayerTexture, TileSelectionTexture;
         
         public static ushort Light = 285;
-        public static World World;
-        private static Point Spawn => World.Spawn;
+        public static World MenuWorld, World;
 
         public static BlendState Multiply = new BlendState { AlphaSourceBlend = Blend.DestinationAlpha, AlphaDestinationBlend = Blend.Zero, AlphaBlendFunction = BlendFunction.Add, ColorSourceBlend = Blend.DestinationColor, ColorDestinationBlend = Blend.Zero, ColorBlendFunction = BlendFunction.Add };
 
         public static RenderTarget2D Lighting;
         public static Thread LightingThread;
-        public static Camera Camera;
+        public static Camera MenuCamera, Camera;
+        private static OrderedDictionary _bufferedStrings;
         public static sbyte CursorOpacitySpeedDir = (sbyte) Globe.Pick(-1, 1);
-        public static float LineThickness = 2, CursorOpacity = Globe.Random(CursorOpacityMin, CursorOpacityMax);
+        public static string LoadingText;
+        public static float LineThickness = 2, CursorOpacity = Globe.Random(CursorOpacityMin, CursorOpacityMax), LoadingPercentage;
+        public static bool GenStarted, GenDone;
 
         public static int CamTilesMinX, CamTilesMinY, CamTilesMaxX, CamTilesMaxY, LightTilesMinX, LightTilesMinY, LightTilesMaxX, LightTilesMaxY;
         public static float ScrWidth, ScrHeight;
+        public static ushort? MenuMusicChannel;
         #endregion
-
+        
         public Game()
         {
             Globe.GraphicsDeviceManager = new GraphicsDeviceManager(this);
@@ -93,7 +98,7 @@ namespace Orbis
             #region Initialization
             Sound.Initialize(256);
             Textures.RootDirectory = "Textures";
-            Sound.RootDirectory = "Sound";
+            Sound.RootDirectory = "Sounds";
             Font.RootDirectory = "Fonts";
             Performance.UpdateFPS = new Buffer(20);
             Performance.DrawFPS = new Buffer(20);
@@ -109,13 +114,15 @@ namespace Orbis
             if (!Settings.Get("Name").IsNullOrEmpty()) MenuState = MenuStates.HostConnect;
             PlayerTexture = Textures.Load("test_char.png");
             Items = LoadItems();
-            Camera = new Camera() {Zoom=CameraZoom};
-            UpdateResCamStuff();
-            World = World.Generate(600, 400);
-            CamPos = new Vector2((World.Spawn.X * Tile.Size), (World.Spawn.Y * Tile.Size));
-            Camera.Position = new Vector2((int)Math.Round(CamPos.X), (int)Math.Round(CamPos.Y));
-            UpdateCamBounds();
+            MenuCamera = new Camera() {Zoom=CameraZoom};
+            UpdateResCamStuff(MenuCamera);
+            MenuWorld = World.Generate(1200, 400);
+            CamPos = new Vector2((MenuWorld.Spawn.X * Tile.Size), (MenuWorld.Spawn.Y * Tile.Size));
+            MenuCamera.Position = new Vector2((int)Math.Round(CamPos.X), (int)Math.Round(CamPos.Y));
+            UpdateCamBounds(MenuWorld, MenuCamera);
             LoadGameTextures();
+            Sound.CompileOggs();
+            MenuMusicChannel = Sound.PlayRaw("Glacier.wav");
         }
         public static void LoadGameTextures()
         {
@@ -132,6 +139,31 @@ namespace Orbis
                 {"Torch", new Item("Torch") {MaxStack = 100, Tile = Tile.Tiles.Torch}}};
             return items;
         }
+        public static void UpdateMenuWorld(GameTime time)
+        {
+            if (!CamWaypoint.HasValue)
+            {
+                var nextSurface = new Point((((int)(MenuCamera.Position.X / Tile.Size)) + ((CamNorm > 0) ? 1 : -1)), (int)(MenuCamera.Position.Y / Tile.Size));
+                for (var y = 1; y < MenuWorld.Height - 1; y++)
+                    if (MenuWorld.Tiles[nextSurface.X, y].Solid)
+                    {
+                        nextSurface.Y = (y - 1);
+                        break;
+                    }
+                var tileHalved = (Tile.Size / 2f);
+                CamWaypoint = (new Vector2(((nextSurface.X * Tile.Size) + tileHalved), ((nextSurface.Y * Tile.Size) + tileHalved)));
+            }
+            else
+            {
+                Globe.Move(ref CamPos, CamWaypoint.Value, (Math.Abs(CamNorm * 32) * (float)(time.ElapsedGameTime.TotalSeconds * 4)));
+                const float camNormVel = .8f;
+                MenuCamera.Position = new Vector2((int)Math.Round(CamPos.X), (int)Math.Round(CamPos.Y));
+                UpdateCamBounds(MenuWorld, MenuCamera);
+                if (Vector2.Distance(CamPos, CamWaypoint.Value) <= 4) CamWaypoint = null;
+                if (CamPos.X >= (((MenuWorld.Width * Tile.Size) - (Screen.BackBufferWidth / 2f)) - (Tile.Size * 8))) { CamNorm = MathHelper.Max(-1, (CamNorm - (camNormVel * (float)time.ElapsedGameTime.TotalSeconds))); }
+                else if (CamPos.X <= ((Screen.BackBufferWidth / 2f) + (Tile.Size * 9))) { CamNorm = MathHelper.Min(1, (CamNorm + (camNormVel * (float)time.ElapsedGameTime.TotalSeconds))); }
+            }
+        }
         protected override void Update(GameTime time)
         {
             Performance.UpdateFPS.Record(1/time.ElapsedGameTime.TotalSeconds);
@@ -146,27 +178,7 @@ namespace Orbis
             #region Menu/Connecting
             if (Frame == Frames.Menu)
             {
-                if (!CamWaypoint.HasValue)
-                {
-                    var nextSurface = new Point((((int)(Camera.Position.X/Tile.Size)) + ((CamNorm > 0) ? 1 : -1)), (int)(Camera.Position.Y/Tile.Size));
-                    for (var y = 1; y < World.Height - 1; y++)
-                        if (World.Tiles[nextSurface.X, y].Solid)
-                        {
-                            nextSurface.Y = (y - 1);
-                            break;
-                        }
-                    CamWaypoint = new Vector2((nextSurface.X*Tile.Size), (nextSurface.Y*Tile.Size));
-                }
-                else
-                {
-                    Globe.Move(ref CamPos, CamWaypoint.Value, (Math.Abs(CamNorm * 32)*(float)(time.ElapsedGameTime.TotalSeconds*4)));
-                    const float camNormVel = .8f;
-                    Camera.Position = new Vector2((int)Math.Round(CamPos.X), (int)Math.Round(CamPos.Y));
-                    UpdateCamBounds();
-                    if (Vector2.Distance(CamPos, CamWaypoint.Value) <= 4) CamWaypoint = null;
-                    if (CamPos.X >= (((World.Width * Tile.Size) - (Screen.BackBufferWidth / 2f)) - (Tile.Size * 8))) { CamNorm = MathHelper.Max(-1, (CamNorm - (camNormVel * (float)time.ElapsedGameTime.TotalSeconds))); }
-                    else if (CamPos.X <= ((Screen.BackBufferWidth / 2f) + (Tile.Size * 9))) { CamNorm = MathHelper.Min(1, (CamNorm + (camNormVel * (float)time.ElapsedGameTime.TotalSeconds))); }
-                }
+                UpdateMenuWorld(time);
                 if (MenuState == MenuStates.UsernameEntry) 
                 {
                     if (IsActive)
@@ -187,6 +199,8 @@ namespace Orbis
                         if (new Rectangle(Mouse.X, Mouse.Y, 1, 1).Intersects(button))
                         {
                             Multiplayer.CreateLobby(Settings.Get("Name"));
+                            if (MenuMusicChannel.HasValue) { Sound.Terminate(MenuMusicChannel.Value); MenuMusicChannel = null; }
+                            GenStarted = false;
                             Frame = Frames.LoadGame;
                         }
                         scale = Scale*.75f;
@@ -208,7 +222,8 @@ namespace Orbis
                         Settings.Set("IP", ip);
                         if (Keyboard.Pressed(Keyboard.Keys.Enter) && !ip.IsNullOrEmpty())
                         {
-                            Network.Connect(Settings.Get("IP").Split(':')[0], Settings.Get("IP").Contains(":") ? Convert.ToInt32(Settings.Get("IP").Split(':')[1]) : 6121, new Network.Packet(null, Settings.Get("Name")));
+                            Network.Connect(Settings.Get("IP").Split(':')[0], Settings.Get("IP").Contains(":") ? Convert.ToInt32(Settings.Get("IP").Split(':')[1]) : Multiplayer.Port, new Network.Packet(null, Settings.Get("Name")));
+                            if (MenuMusicChannel.HasValue) { Sound.Terminate(MenuMusicChannel.Value); MenuMusicChannel = null; }
                             Frame = Frames.Connecting;
                         }
                         else if (Keyboard.Pressed(Keyboard.Keys.Tab)) MenuState = MenuStates.HostConnect;
@@ -218,6 +233,7 @@ namespace Orbis
             }
             else if (Frame == Frames.Connecting)
             {
+                UpdateMenuWorld(time);
                 BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
                 if (BlinkTimer <= 0) BlinkTimer += 1;
                 Network.Update();
@@ -226,21 +242,20 @@ namespace Orbis
             #region LoadGame/Game
             else if (Frame == Frames.LoadGame)
             {
+                UpdateMenuWorld(time);
                 BlinkTimer -= time.ElapsedGameTime.TotalSeconds;
                 if (BlinkTimer <= 0) BlinkTimer += 1;
                 if (Network.IsNullOrServer)
                 {
-                    Camera = new Camera {Zoom = CameraZoom};
-                    UpdateResCamStuff();
-                    World = World.Generate(8400, 2400);
-                    Self.Spawn(Spawn);
-                    UpdateCamPos();
-                    UpdateCamBounds();
-                    InitializeLighting();
-                    InitializeLightingThread();
-                    LightingThread.Start();
-                    LoadGameTextures();
-                    Frame = Frames.Game;
+                    if (!GenStarted) { LoadingText = null; GenDone = false; var thread = new Thread(() => { World = World.Generate(8400, 2400); }) {IsBackground = true}; thread.Start(); GenStarted = true; }
+                    if (GenDone)
+                    {
+                        InitializeGame();
+                        Self.Spawn(World.Spawn);
+                        UpdateCamPos();
+                        UpdateCamBounds(World, Camera);
+                        Frame = Frames.Game;
+                    }
                 }
                 Network.Update();
             }
@@ -258,19 +273,32 @@ namespace Orbis
                     {
                         Camera.Zoom = MathHelper.Min(8, (float) Math.Round(Camera.Zoom + ZoomRate, 2));
                         InitializeLighting();
-                        UpdateResCamStuff();
+                        UpdateResCamStuff(Camera);
                     }
                     if (Mouse.ScrolledDown())
                     {
                         Camera.Zoom = MathHelper.Max(.5f, (float) Math.Round(Camera.Zoom - ZoomRate, 2));
                         InitializeLighting();
-                        UpdateResCamStuff();
+                        UpdateResCamStuff(Camera);
                     }
                     if (Keyboard.Pressed(Keyboard.Keys.D1)) Self.AddItem(Items["Dirt"].Clone(Keyboard.HoldingShift() ? 30 : 3));
                     if (Keyboard.Pressed(Keyboard.Keys.D2)) Self.AddItem(Items["Stone"].Clone(Keyboard.HoldingShift() ? 30 : 3));
                 }
                 UpdateCamPos();
-                UpdateCamBounds();
+                UpdateCamBounds(World, Camera);
+                for (var i = (_bufferedStrings.Count - 1); i >= 0; i--)
+                {
+                    var bString = (_bufferedStrings[i] as BufferedString);
+                    bString.CalculateRectangle(Font.Load("calibri 50"), new Vector2(Self.WorldPosition.X, (Self.WorldPosition.Y - BufferedString.PlayerYOffset)));
+                    if (i < (_bufferedStrings.Count - 1))
+                    {
+                        if (bString.Rectangle.Intersects((_bufferedStrings[i + 1] as BufferedString).Rectangle)) bString.Offset -= (20*(float) time.ElapsedGameTime.TotalSeconds);
+                        else bString.Offset += (20*(float) time.ElapsedGameTime.TotalSeconds);
+                    }
+                    else bString.Offset = MathHelper.Min(0, (bString.Offset + (20 * (float)time.ElapsedGameTime.TotalSeconds)));
+                    bString.Life -= (float) time.ElapsedGameTime.TotalSeconds;
+                    if (bString.Life <= 0) { _bufferedStrings.RemoveAt(i); i--; }
+                }
                 Network.Update();
             }
             #endregion
@@ -280,7 +308,22 @@ namespace Orbis
             base.Update(time);
         }
 
-        private static readonly List<string> bufferedStrings = new List<string>();
+        public static void DrawMenuWorld()
+        {
+            Screen.Setup(SamplerState.PointClamp, MenuCamera.View());
+            for (var x = CamTilesMinX; x <= CamTilesMaxX; x++)
+                for (var y = CamTilesMinY; y <= CamTilesMaxY; y++)
+                {
+                    var pos = new Vector2(x * Tile.Size, y * Tile.Size);
+                    if ((MenuWorld.Tiles[x, y].BackID != 0) && MenuWorld.Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, pos, Tile.Source(MenuWorld.Tiles[x, y].BackID, MenuWorld.Tiles[x, y].BackStyle), Color.DarkGray, SpriteEffects.None, .75f);
+                    if (MenuWorld.Tiles[x, y].ForeID != 0)
+                    {
+                        Screen.Draw(TilesTexture, pos, Tile.Source(MenuWorld.Tiles[x, y].ForeID, MenuWorld.Tiles[x, y].ForeStyle), SpriteEffects.None, .25f);
+                        if (MenuWorld.Tiles[x, y].HasBorder) Screen.Draw(TilesTexture, pos, Tile.Border(MenuWorld.GenerateStyle(x, y)), SpriteEffects.None, .2f);
+                    }
+                }
+            Screen.Cease();
+        }
         protected override void Draw(GameTime time)
         {
             Performance.DrawFPS.Record(1/time.ElapsedGameTime.TotalSeconds);
@@ -290,19 +333,7 @@ namespace Orbis
             if (Frame == Frames.Menu)
             {
                 GraphicsDevice.Clear(Color.CornflowerBlue);
-                Screen.Setup(SamplerState.PointClamp, Camera.View());
-                for (var x = CamTilesMinX; x <= CamTilesMaxX; x++)
-                    for (var y = CamTilesMinY; y <= CamTilesMaxY; y++)
-                    {
-                        var pos = new Vector2(x*Tile.Size, y*Tile.Size);
-                        if ((World.Tiles[x, y].BackID != 0) && World.Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, pos, Tile.Source(World.Tiles[x, y].BackID, World.Tiles[x, y].BackStyle), Color.DarkGray, SpriteEffects.None, .75f);
-                        if (World.Tiles[x, y].ForeID != 0)
-                        {
-                            Screen.Draw(TilesTexture, pos, Tile.Source(World.Tiles[x, y].ForeID, World.Tiles[x, y].ForeStyle), SpriteEffects.None, .25f);
-                            if (World.Tiles[x, y].HasBorder) Screen.Draw(TilesTexture, pos, Tile.Border(World.GenerateStyle(x, y)), SpriteEffects.None, .2f);
-                        }
-                    }
-                Screen.Cease();
+                DrawMenuWorld();
                 Screen.Setup(SpriteSortMode.Deferred, SamplerState.PointClamp);
                 Screen.DrawString("Developed by Dcrew", Font.Load("calibri 30"), new Vector2(Screen.BackBufferWidth/2f, Screen.BackBufferHeight - Screen.BackBufferHeight/8f), Color.Gray*.5f, Textures.Origin.Center, Scale*.5f);
                 if (MenuState == MenuStates.UsernameEntry)
@@ -359,6 +390,8 @@ namespace Orbis
             }
             else if (Frame == Frames.Connecting)
             {
+                GraphicsDevice.Clear(Color.CornflowerBlue);
+                DrawMenuWorld();
                 Screen.Setup();
                 Screen.DrawString("Connecting to " + Settings.Get("IP") + new string('.', 4 - (int) Math.Ceiling(BlinkTimer*4)), Font.Load("calibri 50"), new Vector2(Screen.BackBufferWidth/2f, Screen.BackBufferHeight/2f), Color.White,
                     Textures.Origin.Center, Scale*.5f);
@@ -368,8 +401,10 @@ namespace Orbis
             #region LoadGame/Game
             else if (Frame == Frames.LoadGame)
             {
+                GraphicsDevice.Clear(Color.CornflowerBlue);
+                DrawMenuWorld();
                 Screen.Setup();
-                Screen.DrawString("Loading" + new string('.', 4 - (int) Math.Ceiling(BlinkTimer*4)), Font.Load("calibri 50"), new Vector2(Screen.BackBufferWidth/2f, Screen.BackBufferHeight/2f), Color.White, Textures.Origin.Center, Scale*.5f);
+                if (!string.IsNullOrEmpty(LoadingText)) Screen.DrawString((LoadingText + new string('.', 4 - (int) Math.Ceiling(BlinkTimer*4)) + " " + Math.Round(LoadingPercentage) + "%"), Font.Load("calibri 50"), new Vector2(Screen.BackBufferWidth/2f, Screen.BackBufferHeight/2f), Color.White, Textures.Origin.Center, Scale);
                 Screen.Cease();
             }
             else if (Frame == Frames.Game)
@@ -379,7 +414,7 @@ namespace Orbis
                 Screen.Setup(SamplerState.PointClamp, Camera.View());
                 for (var x = CamTilesMinX; x <= CamTilesMaxX; x++)
                     for (var y = CamTilesMinY; y <= CamTilesMaxY; y++)
-                        if ((World.Tiles[x, y].Light > 0) || (World.Tiles[x, y].Fore == Tile.Tiles.Black))
+                        //if ((World.Tiles[x, y].Light > 0) || (World.Tiles[x, y].Fore == Tile.Tiles.Black))
                         {
                             var pos = new Vector2(x*Tile.Size, y*Tile.Size);
                             if ((World.Tiles[x, y].BackID != 0) && World.Tiles[x, y].DrawBack) Screen.Draw(TilesTexture, pos, Tile.Source(World.Tiles[x, y].BackID, World.Tiles[x, y].BackStyle), Color.DarkGray, SpriteEffects.None, .75f);
@@ -397,23 +432,23 @@ namespace Orbis
                 var invSlot = Textures.Load("Inventory Slot.png");
                 Screen.Setup();
                 const int itemsPerRow = 7;
-                var rows = (int) Math.Ceiling(Inventory.PlayerInvSize/(float) itemsPerRow);
                 var invScale = 1f; var invPos = new Vector2((Screen.BackBufferWidth - (((invSlot.Width * invScale) * itemsPerRow) + (itemsPerRow - 1)) - 5), 5);
                 Self.DrawInventory(invPos, itemsPerRow, invScale);
                 if (Settings.IsDebugMode)
                 {
+                    var rows = (int)Math.Ceiling(Inventory.PlayerInvSize / (float)itemsPerRow);
                     invPos.Y += (rows*(invSlot.Height*invScale)) + 5;
                     invScale = .5f;
                     invPos.X = (Screen.BackBufferWidth - (((invSlot.Width*invScale)*itemsPerRow) + (itemsPerRow - 1)) - 5);
-                    foreach (var player in Players.Where(player => !player.Matches(null, Self)))
+                    foreach (var t in Players.Where(player => !player.Matches(null, Self)))
                     {
-                        player.DrawInventory(invPos, itemsPerRow, invScale);
+                        t.DrawInventory(invPos, itemsPerRow, invScale);
                         invPos.Y += (rows*(invSlot.Height*invScale)) + 10;
                     }
                 }
                 Screen.Cease();
                 Screen.Setup(SpriteSortMode.Deferred, Multiply, Camera.View());
-                Screen.Draw(Lighting, new Rectangle(CamTilesMinX*Tile.Size, CamTilesMinY*Tile.Size, Lighting.Width*Tile.Size, Lighting.Height*Tile.Size));
+                Screen.Draw(Lighting, new Rectangle(CamTilesMinX * Tile.Size, CamTilesMinY * Tile.Size, Lighting.Width * Tile.Size, Lighting.Height * Tile.Size));
                 Screen.Cease();
                 if (Settings.IsDebugMode)
                 {
@@ -429,11 +464,15 @@ namespace Orbis
                         new Vector2(DebugTextScale));
                     Screen.Cease();
                 }
-                foreach (var str in bufferedStrings)
+                if (_bufferedStrings.Count > 0)
                 {
-                    //
-                    Screen.Setup();
-                    Screen.DrawString(str, Font.Load("calibri 20"), new Vector2(Screen.ViewportWidth / 2, Screen.ViewportHeight / 2), Color.White);
+                    Screen.Setup(Camera.View());
+                    foreach (var v in _bufferedStrings.Values)
+                    {
+                        var bString = (v as BufferedString);
+                        Screen.DrawString(bString.Text, Font.Load("calibri 50"), new Vector2(Self.WorldPosition.X, (Self.WorldPosition.Y - BufferedString.PlayerYOffset + bString.Offset)), (Color.White * MathHelper.Clamp((float)bString.Life, 0, 1)),
+                            Textures.Origin.Center, new Vector2(BufferedString.Scale));
+                    }
                     Screen.Cease();
                 }
             }
@@ -475,10 +514,10 @@ namespace Orbis
             if (x >= World.Tiles.GetLength(0)) return 0;
             return World.Tiles[x, y].Empty ? Light : World.Tiles[x, y].Light;
         }
-        public static void UpdateResCamStuff()
+        public static void UpdateResCamStuff(Camera camera)
         {
-            ScrWidth = Screen.BackBufferWidth/2f/Camera.Zoom;
-            ScrHeight = Screen.BackBufferHeight/2f/Camera.Zoom;
+            ScrWidth = Screen.BackBufferWidth/2f/ camera.Zoom;
+            ScrHeight = Screen.BackBufferHeight/2f/ camera.Zoom;
             //LineThickness = (1/Camera.Zoom);
         }
         public static void UpdateCamPos()
@@ -486,17 +525,18 @@ namespace Orbis
             Camera.Position = new Vector2(MathHelper.Clamp(Self.WorldPosition.X, ScrWidth + Tile.Size, World.Tiles.GetLength(0)*Tile.Size - ScrWidth - Tile.Size),
                 MathHelper.Clamp(Self.WorldPosition.Y, ScrHeight + Tile.Size, World.Tiles.GetLength(1)*Tile.Size - ScrHeight - Tile.Size));
         }
-        public static void UpdateCamBounds()
+        public static void UpdateCamBounds(World world, Camera camera)
         {
-            CamTilesMinX = (int) Math.Max(0, Math.Floor((Camera.X - ScrWidth)/Tile.Size - 1));
-            CamTilesMinY = (int) Math.Max(0, Math.Floor((Camera.Y - ScrHeight)/Tile.Size - 1));
-            CamTilesMaxX = (int) Math.Min(World.Tiles.GetLength(0) - 1, Math.Ceiling((Camera.X + ScrWidth)/Tile.Size));
-            CamTilesMaxY = (int) Math.Min(World.Tiles.GetLength(1) - 1, Math.Ceiling((Camera.Y + ScrHeight)/Tile.Size));
+            CamTilesMinX = (int) Math.Max(0, Math.Floor((camera.X - ScrWidth)/Tile.Size - 1));
+            CamTilesMinY = (int) Math.Max(0, Math.Floor((camera.Y - ScrHeight)/Tile.Size - 1));
+            CamTilesMaxX = (int) Math.Min(world.Tiles.GetLength(0) - 1, Math.Ceiling((camera.X + ScrWidth)/Tile.Size));
+            CamTilesMaxY = (int) Math.Min(world.Tiles.GetLength(1) - 1, Math.Ceiling((camera.Y + ScrHeight)/Tile.Size));
             LightTilesMinX = Math.Max(0, CamTilesMinX - LightingUpdateBuffer);
             LightTilesMinY = Math.Max(0, CamTilesMinY - LightingUpdateBuffer);
-            LightTilesMaxX = Math.Min(World.Tiles.GetLength(0) - 1, CamTilesMaxX + LightingUpdateBuffer);
-            LightTilesMaxY = Math.Min(World.Tiles.GetLength(1) - 1, CamTilesMaxY + LightingUpdateBuffer);
+            LightTilesMaxX = Math.Min(world.Tiles.GetLength(0) - 1, CamTilesMaxX + LightingUpdateBuffer);
+            LightTilesMaxY = Math.Min(world.Tiles.GetLength(1) - 1, CamTilesMaxY + LightingUpdateBuffer);
         }
+        public static void InitializeGame() { Camera = new Camera { Zoom = CameraZoom }; UpdateResCamStuff(Camera); InitializeLighting(); InitializeLightingThread(); LightingThread.Start(); LoadGameTextures(); _bufferedStrings = new OrderedDictionary(); }
         public static void InitializeLighting() { Lighting = new RenderTarget2D(Globe.GraphicsDevice, (int) Math.Ceiling(Screen.BackBufferWidth/Camera.Zoom/Tile.Size + 2), (int) Math.Ceiling(Screen.BackBufferHeight/Camera.Zoom/Tile.Size + 2)); }
         public static void InitializeLightingThread() { LightingThread = new Thread(() => { while (true) { UpdateLighting(); Thread.Sleep(50); } }) { Name = "Lighting", IsBackground = true }; }
         public static void UpdateLighting()
@@ -538,7 +578,17 @@ namespace Orbis
         /// <param name="item">The string to draw.</param>
         public static void QueueItemPickupText(Item item)
         {
-            bufferedStrings.Add(item.Key + " (" + item.Stack + ")");
+            var key = ("Picked up " + item.Key);
+            if (_bufferedStrings.Contains(key))
+            {
+                var bString = (_bufferedStrings[key] as BufferedString);
+                var numStr = bString.Text.Split('(')[1];
+                var count = Convert.ToInt32(numStr.Substring(0, (numStr.Length - 1)));
+                bString.Text = (item.Key + " (" + (count + item.Stack) + ")");
+                bString.Life = BufferedString.StartingLife;
+                return;
+            }
+            _bufferedStrings.Add(key, new BufferedString(item.Key + " (" + item.Stack + ")"));
         }
     }
 }
