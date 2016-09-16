@@ -13,7 +13,7 @@
         /// </summary>
         public int MaxStack = 1;
 
-        public Tile.Tiles? Tile;
+        public Tile.Types? Tile;
         public byte? Style;
 
         public Entity Entity;

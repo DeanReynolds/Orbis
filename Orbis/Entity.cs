@@ -1,14 +1,12 @@
 ﻿using System;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using SharpXNA.Collision;
 
 namespace Orbis
 {
     public class Entity
     {
-        private static World World => Game.World;
-        private static Texture2D PlayerTexture => Game.PlayerTexture;
+        private static World GameWorld => Game.GameWorld;
 
         private Vector2 _linearPosition;
         public Vector2 LinearPosition
@@ -16,10 +14,17 @@ namespace Orbis
             get { return _linearPosition; }
             set
             {
-                float maxWidth = float.MaxValue, maxHeight = float.MaxValue;
-                if (World != null) { maxWidth = ((World.Width - 1)*Tile.Size); maxHeight = ((World.Height - 1)*Tile.Size); }
-                value.X = MathHelper.Clamp(value.X, (Tile.Size + (PlayerTexture.Width/2f)), (maxWidth - (PlayerTexture.Width/2f)));
-                value.Y = MathHelper.Clamp(value.Y, (Tile.Size + (PlayerTexture.Height/2f)), (maxHeight - (PlayerTexture.Height/2f)));
+                if (IsBoundByWorld)
+                {
+                    float maxWidth = float.MaxValue, maxHeight = float.MaxValue;
+                    if (GameWorld != null)
+                    {
+                        maxWidth = ((GameWorld.Width - 1)*Tile.Size);
+                        maxHeight = ((GameWorld.Height - 1)*Tile.Size);
+                    }
+                    value.X = MathHelper.Clamp(value.X, (Tile.Size + (Hitbox.Width/2f)), (maxWidth - (Hitbox.Width/2f)));
+                    value.Y = MathHelper.Clamp(value.Y, (Tile.Size + (Hitbox.Height/2f)), (maxHeight - (Hitbox.Height/2f)));
+                }
                 _linearPosition = value;
                 _worldPosition = new Vector2((int) Math.Round(_linearPosition.X), (int) Math.Round(_linearPosition.Y));
                 Hitbox.Position = _worldPosition;
@@ -36,7 +41,12 @@ namespace Orbis
             get { return LinearPosition.X; }
             set
             {
-                value = MathHelper.Clamp(value, (Tile.Size + (PlayerTexture.Width / 2)), (((World.Tiles.GetLength(0) - 1) * Tile.Size) - (PlayerTexture.Width / 2)));
+                if (IsBoundByWorld)
+                {
+                    var maxWidth = float.MaxValue;
+                    if (GameWorld != null) maxWidth = ((GameWorld.Width - 1)*Tile.Size);
+                    value = MathHelper.Clamp(value, (Tile.Size + (Hitbox.Width/2f)), (maxWidth - (Hitbox.Width/2f)));
+                }
                 _linearPosition.X = value;
                 _worldPosition.X = (int) Math.Round(value);
                 Hitbox.X = _worldPosition.X;
@@ -48,7 +58,12 @@ namespace Orbis
             get { return LinearPosition.Y; }
             set
             {
-                value = MathHelper.Clamp(value, (Tile.Size + (PlayerTexture.Height / 2)), (((World.Tiles.GetLength(1) - 1) * Tile.Size) - (PlayerTexture.Height / 2)));
+                if (IsBoundByWorld)
+                {
+                    var maxHeight = float.MaxValue;
+                    if (GameWorld != null) maxHeight = ((GameWorld.Height - 1)*Tile.Size);
+                    value = MathHelper.Clamp(value, (Tile.Size + (Hitbox.Height/2f)), (maxHeight - (Hitbox.Height/2f)));
+                }
                 _linearPosition.Y = value;
                 _worldPosition.Y = (int) Math.Round(value);
                 Hitbox.Y = _worldPosition.Y;
@@ -88,6 +103,7 @@ namespace Orbis
         /// </summary>
         public bool IsAffectedByGravity;
         public bool IsVelocityLocked;
+        public bool IsBoundByWorld;
         /// <summary>
         /// How fast the entity is moving around in the world.
         /// </summary>
@@ -123,7 +139,7 @@ namespace Orbis
             {
                 if (_collisionOptions.HasFlag(CollisionOptions.CollidesWithTerrain))
                 {
-                    MovementResistance = World.Tiles[TileX, (TileY + 2)].MovementResistance;
+                    MovementResistance = GameWorld.Tiles[TileX, (TileY + 2)].MovementResistance;
                     var movementResistance = (MovementResistance*(float) time.ElapsedGameTime.TotalSeconds);
                     if (Velocity.X > 0) Velocity.X = MathHelper.Clamp((Velocity.X - movementResistance), 0, MaxXVel);
                     else if (Velocity.X < 0) Velocity.X = MathHelper.Clamp((Velocity.X + movementResistance), -MaxXVel, 0);
@@ -138,7 +154,7 @@ namespace Orbis
             {
                 for (var x = (TileX - _tilesWidth); x <= (TileX + _tilesWidth); x++)
                     for (var y = (TileY - _tilesHeight); y <= (TileY + _tilesHeight); y++)
-                        if (World.InBounds(x, y) && World.Tiles[x, y].Solid)
+                        if (GameWorld.InBounds(x, y) && GameWorld.Tiles[x, y].Solid)
                         {
                             var hitbox = Polygon.CreateSquare(Tile.Size);
                             hitbox.Position = new Vector2(((x * Tile.Size) + (Tile.Size / 2f)), ((y * Tile.Size) + (Tile.Size / 2f)));

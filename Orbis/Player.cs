@@ -17,9 +17,11 @@ namespace Orbis
     {
         private static Player Self => Game.Self;
         private static Player[] Players => Game.Players;
-        private static World World => Game.World;
-        private static float LineThickness { get { return Game.LineThickness; } set { Game.LineThickness = value; } }
-        
+        private static World World => Game.GameWorld;
+
+        private static readonly Texture2D _charTexture;
+        private static SpriteFont _orbisFont => Game._orbisFont;
+
         /// <summary>
         /// The NetConnection this player is connecting from.
         /// </summary>
@@ -35,14 +37,14 @@ namespace Orbis
         
         [Flags] public enum Inputs { None = 0, Jump = 1, MoveLeft = 2, MoveRight = 4, DirLeft = 8, DirRight = 16, DebugMoveUp = 32, DebugMoveLeft = 64, DebugMoveRight = 128 }
         public Inputs LastInput;
-        public const float DebugMoveSpeed = 10;
+        public const float DebugMoveSpeed = 800;
         public byte Jumps;
         public float MovementSpeed { get; private set; }
         private Inventory _inventory;
-        private static Texture2D PlayerTexture => Game.PlayerTexture;
         private Vector2 _lastWorldPosition;
         public int LastTileX, LastTileY;
 
+        static Player() { _charTexture = Textures.Load("test_char.png"); }
         /// <summary>
         /// Creates a player with only a name.
         /// </summary>
@@ -57,8 +59,9 @@ namespace Orbis
 
         public void Load()
         {
+            IsBoundByWorld = true;
             IsAffectedByGravity = true;
-            Hitbox = Polygon.CreateRectangle(new Vector2((PlayerTexture.Width - 2), (PlayerTexture.Height - 2)));
+            Hitbox = Polygon.CreateRectangle(new Vector2((_charTexture.Width - 2), (_charTexture.Height - 2)));
             _inventory = new Inventory(Inventory.PlayerInvSize);
         }
 
@@ -68,9 +71,9 @@ namespace Orbis
             if (LastInput.HasFlag(Inputs.Jump) && (Jumps <= 0)) { Velocity.Y = -300; Jumps++; }
             if (LastInput.HasFlag(Inputs.MoveLeft)) Velocity.X = -MovementSpeed;
             if (LastInput.HasFlag(Inputs.MoveRight)) Velocity.X = MovementSpeed;
-            if (LastInput.HasFlag(Inputs.DebugMoveUp)) Velocity.Y = -(DebugMoveSpeed * 30);
-            if (LastInput.HasFlag(Inputs.DebugMoveLeft)) Velocity.X = -(DebugMoveSpeed * 30);
-            if (LastInput.HasFlag(Inputs.DebugMoveRight)) Velocity.X = (DebugMoveSpeed * 30);
+            if (LastInput.HasFlag(Inputs.DebugMoveUp)) Velocity.Y = -DebugMoveSpeed;
+            if (LastInput.HasFlag(Inputs.DebugMoveLeft)) Velocity.X = -DebugMoveSpeed;
+            if (LastInput.HasFlag(Inputs.DebugMoveRight)) Velocity.X = DebugMoveSpeed;
             base.Update(time);
             if (IsOnGround) Jumps = 0;
             #region Sync Chunks
@@ -142,8 +145,8 @@ namespace Orbis
         }
         public void Draw()
         {
-            Screen.Draw(PlayerTexture, WorldPosition, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), 0);
-            if (Settings.IsDebugMode) Hitbox.Draw(Color.Red*.5f, LineThickness);
+            Screen.Draw(_charTexture, WorldPosition, Origin.Center, ((Direction == -1) ? SpriteEffects.FlipHorizontally : SpriteEffects.None), .150001f);
+            if (Settings.IsDebugMode) Hitbox.Draw(Color.Red*.5f, 2, SpriteEffects.None, .15f);
         }
         public void DrawInventory(Vector2 position, int itemsPerRow, float scale = 1)
         {
@@ -160,8 +163,8 @@ namespace Orbis
                         Screen.Draw("Tiles.png", new Vector2((pos.X + ((invSlot.Width * scale)/2f)), (pos.Y + ((invSlot.Height * scale)/2f))), Tile.Source((int) GetItem(i).Tile.Value,
                             (GetItem(i).Style.HasValue ? GetItem(i).Style.Value : (byte) 0)), new Origin(4), new Vector2(4 * scale));
                     }
-                    if (GetItem(i).Stack > 1) Screen.DrawString(GetItem(i).Stack.ToString(), Font.Load("calibri 30"), new Vector2((pos.X + ((invSlot.Width-4)*scale)), (pos.Y + ((invSlot.Height-4)*scale))), (Color.White * .75f), (Color.Black * .75f),
-                        new Origin(1, true), new Vector2(.5f * scale));
+                    if (GetItem(i).Stack > 1) Screen.DrawString(GetItem(i).Stack.ToString(), _orbisFont, new Vector2((pos.X + ((invSlot.Width-4)*scale)), (pos.Y + ((invSlot.Height-3)*scale))), (Color.White * .75f), (Color.Black * .75f),
+                        new Origin(1, true), new Vector2(.2f * scale));
                 }
             }
         }

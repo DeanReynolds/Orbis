@@ -11,7 +11,7 @@ namespace Orbis
         public Rectangle Rectangle;
         public const double StartingLife = 5;
         public double Life = StartingLife;
-        public const float Scale = .25f, PlayerYOffset = 20;
+        public const float Scale = .15f, PlayerYOffset = 20;
 
         public BufferedString(string text) { Text = text; }
 

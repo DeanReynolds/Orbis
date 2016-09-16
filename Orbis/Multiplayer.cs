@@ -2,6 +2,7 @@
 using SharpXNA;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Threading;
 
 namespace Orbis
@@ -20,7 +21,7 @@ namespace Orbis
         private static Player Self{ get { return Game.Self; } set { Game.Self = value; } }
         private static Player[] Players { get { return Game.Players; } set { Game.Players = value; } }
         private static Dictionary<string, Item> Items => Game.Items;
-        private static World World { get { return Game.World; } set { Game.World = value; } }
+        private static World GameWorld { get { return Game.GameWorld; } set { Game.GameWorld = value; } }
         private static string LoadingText { get { return Game.LoadingText; } set { Game.LoadingText = value; } }
         private static float LoadingPercentage { get { return Game.LoadingPercentage; } set { Game.LoadingPercentage = value; } }
 
@@ -138,12 +139,17 @@ namespace Orbis
                 if (sender == null) return;
                 for (var i = 0; i < Inventory.PlayerInvSize; i++) if (message.ReadBoolean()) sender.SetItem(i, Items[message.ReadString()].Clone(message.ReadInt32()));
             }
-            else if (packet == Packets.WorldData) { World = new World(message.ReadInt32(), message.ReadInt32()) {Spawn = message.ReadPoint()}; }
+            else if (packet == Packets.WorldData)
+            {
+                GameWorld = new World(message.ReadInt32(), message.ReadInt32()) {Spawn = message.ReadPoint()};
+                for (var x = 0; x < GameWorld.Width; x++) GameWorld.Tiles[x, 0].Fore = GameWorld.Tiles[x, GameWorld.Height - 1].Fore = Tile.Types.Black;
+                for (var y = 0; y < GameWorld.Height; y++) GameWorld.Tiles[0, y].Fore = GameWorld.Tiles[GameWorld.Width - 1, y].Fore = Tile.Types.Black;
+            }
             else if (packet == Packets.TileData)
             {
                 if (Network.IsServer)
                 {
-                    new Packet((byte) Packets.WorldData, World.Width, World.Height, World.Spawn).SendTo(message.SenderConnection);
+                    new Packet((byte) Packets.WorldData, GameWorld.Width, GameWorld.Height, GameWorld.Spawn).SendTo(message.SenderConnection);
                     //for (var x = -ChunkBufferWidth; x < ChunkBufferWidth; x++)
                     //    for (var y = -ChunkBufferHeight; y < ChunkBufferHeight; y++)
                     //    {
@@ -155,24 +161,24 @@ namespace Orbis
                     var thread = new Thread(() =>
                     {
                         var x = 1;
-                        for (var y = 1; y < (World.Height - 1); y++, x = 1)
-                            while (x < (World.Width - 1))
+                        for (var y = 1; y < (GameWorld.Height - 1); y++, x = 1)
+                            while (x < (GameWorld.Width - 1))
                             {
                                 var tileData = new Packet((byte) Packets.TileData);
-                                x = WriteRowOfTiles(ref tileData, World, x, y, widthOfTilesToSync);
+                                x = WriteRowOfTiles(ref tileData, GameWorld, x, y, widthOfTilesToSync);
                                 tileData.SendTo(message.SenderConnection);
                             }
                     }) {IsBackground = true};
                     thread.Start();
                     var sender = Player.Get(message.SenderConnection);
-                    sender.Spawn(World.Spawn);
-                    sender.LastTileX = World.Spawn.X;
-                    sender.LastTileY = World.Spawn.Y;
+                    sender.Spawn(GameWorld.Spawn);
+                    sender.LastTileX = GameWorld.Spawn.X;
+                    sender.LastTileY = GameWorld.Spawn.Y;
                     sender.IsVelocityLocked = false;
                 }
                 else
                 {
-                    LoadingText = "Requesting Tile Data"; LoadingPercentage = ReadRowOfTiles(ref message, World);
+                    LoadingText = "Requesting Tile Data"; LoadingPercentage = ReadRowOfTiles(ref message, GameWorld);
                     if (LoadingPercentage >= 100)
                     {
                         var invData = new Packet((byte)Packets.PlayerData);
@@ -187,17 +193,18 @@ namespace Orbis
             }
             else if (packet == Packets.FinalData)
             {
-                Game.InitializeGame();
-                Self.Spawn(World.Spawn);
-                Game.UpdateCamPos();
-                Game.UpdateCamBounds(World, Game.Camera);
+                Game.BufferedStrings = new OrderedDictionary();
+                if (Game.MenuMusicChannel.HasValue) { Sound.Terminate(Game.MenuMusicChannel.Value); Game.MenuMusicChannel = null; }
+                Game.LoadItems();
+                Self.Spawn(GameWorld.Spawn);
+                GameWorld.Position = Self.WorldPosition;
                 Frame = Frames.Game;
             }
             #endregion
             #region Rectangle/Column/Row OfTiles
             //else if (packet == Packets.RectangleOfTiles) { ReadRectangleOfTiles(ref message, ref World.Tiles); }
             //else if (packet == Packets.ColumnOfTiles) { ReadColumnOfTiles(ref message, ref World.Tiles); }
-            else if (packet == Packets.RowOfTiles) { ReadRowOfTiles(ref message, World); }
+            else if (packet == Packets.RowOfTiles) { ReadRowOfTiles(ref message, GameWorld); }
             #endregion
             #region Player Add/Set/Remove Item
             else if (packet == Packets.PlayerAddItem)
@@ -278,7 +285,7 @@ namespace Orbis
                 for (var k = 0; k <= rle; k++) world.Tiles[j, y].CopyTileTo(ref world.Tiles[(j + k), y]);
                 j += (rle + 1);
             }
-            return ((((j + 1) + (y*(World.Width-2)))/(float) ((World.Width - 2)*(World.Height-1)))*100);
+            return ((((j + 1) + (y*(world.Width-2)))/(float) ((world.Width - 2)*(world.Height-1)))*100);
         }
 
         //public static void WriteRectangleOfTiles(ref Tile[,] tiles, ref Packet data, int x, int y, int width, int height)
